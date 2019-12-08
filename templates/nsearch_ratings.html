@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div>
+  <nav> 
+    {{ macros.m_tab_head_start() }}
+      {{ macros.m_tab_head('드라마', true) }}
+	  {{ macros.m_tab_head('예능', false) }}
+    {{ macros.m_tab_head_end() }}
+  </nav>  
+
+  <div class="tab-content" id="nav-tabContent">
+    {{ macros.m_tab_content_start('드라마', true) }}
+      <form>
+        <div class="btn-group btn-group-sm flex-wrap mr-2" role="group">
+          <button id="search_dra1" name="submit" type="button" class="btn btn-sm btn-outline-success" data-keyword="월화드라마">월화드라마</button>
+          <button id="search_dra2" name="submit" type="button" class="btn btn-sm btn-outline-success" data-keyword="수목드라마">수목드라마</button>
+          <button id="search_dra3" name="submit" type="button" class="btn btn-sm btn-outline-success" data-keyword="금요/주말드라마">금요/주말드라마</button>
+          <button id="search_dra4" name="submit" type="button" class="btn btn-sm btn-outline-success" data-keyword="일일/아침드라마">일일/아침드라마</button>
+        </div>
+      </form>
+      <div id="detail_dra" class="container"></div>
+	{{ macros.m_tab_content_end() }}
+    {{ macros.m_tab_content_start('예능', false) }}
+      <form>
+        <div class="btn-group btn-group-sm flex-wrap mr-2" role="group">
+          <button id="search_ent1" name="submit" type="button" class="btn btn-sm btn-outline-success" data-keyword="월요일예능">월요일</button>
+          <button id="search_ent2" name="submit" type="button" class="btn btn-sm btn-outline-success" data-keyword="화요일예능">화요일</button>
+          <button id="search_ent3" name="submit" type="button" class="btn btn-sm btn-outline-success" data-keyword="수요일예능">수요일</button>
+          <button id="search_ent4" name="submit" type="button" class="btn btn-sm btn-outline-success" data-keyword="목요일예능">목요일</button>
+          <button id="search_ent5" name="submit" type="button" class="btn btn-sm btn-outline-success" data-keyword="금요일예능">금요일</button>
+          <button id="search_ent6" name="submit" type="button" class="btn btn-sm btn-outline-success" data-keyword="토요일예능">토요일</button>
+          <button id="search_ent7" name="submit" type="button" class="btn btn-sm btn-outline-success" data-keyword="일요일예능">일요일</button>
+        </div>
+      </form>
+      <div id="detail_ent" class="container"></div>
+    {{ macros.m_tab_content_end() }}
+  </div><!--tab-content-->
+</div> <!--전체-->
+
+<link href="https://getbootstrap.com/docs/4.0/examples/album/album.css" rel="stylesheet">
+
+<script type="text/javascript">
+var package_name = 'nsearch';
+var wavve_plugin = '{{arg['wavve_plugin']}}';
+var tving_plugin = '{{arg['tving_plugin']}}';
+var list_method = '{{arg['list_method']}}';
+
+$("#search_dra1,#search_dra2,#search_dra3,#search_dra4").click(function(e) {
+  e.preventDefault();
+  var keyword = $(this).data('keyword');
+  $.ajax({
+    url: '/' + package_name + '/ajax/ratings',
+    type: "POST",
+    cache: false,
+    data: {keyword:keyword},
+    dataType: "json",
+    success: function (data) {
+      if (list_method == 'album') {
+        make_ratings_album(data, 'dra');
+      } else {
+        make_ratings_list(data, 'dra');
+      }
+	}
+  })
+});
+
+$("#search_ent1,#search_ent2,#search_ent3,#search_ent4,#search_ent5,#search_ent6,#search_ent7").click(function(e) {
+  e.preventDefault();
+  var keyword = $(this).data('keyword');
+  $.ajax({
+    url: '/' + package_name + '/ajax/ratings',
+    type: "POST",
+    cache: false,
+    data: {keyword:keyword},
+    dataType: "json",
+    success: function (data) {
+      if (list_method == 'album') {
+        make_ratings_album(data, 'ent');
+      } else {
+        make_ratings_list(data, 'ent');
+      }
+	}
+  })
+});
+
+$("body").on('click', '#wavve_whitelist_program_btn', function(e){
+    e.preventDefault();
+    var program = $(this).data('program');
+    $.ajax({
+      url: '/' + wavve_plugin + '/ajax/whitelist',
+      type: "POST",
+      cache: false,
+      data: {program:program},
+      dataType: "json",
+      success: function (data) {
+        except_result_process(data);
+      }
+    });
+});
+
+$("body").on('click', '#wavve_except_program_btn', function(e){
+    e.preventDefault();
+    var program = $(this).data('program');
+    $.ajax({
+      url: '/' + wavve_plugin + '/ajax/except',
+      type: "POST",
+      cache: false,
+      data: {program:program},
+      dataType: "json",
+      success: function (data) {
+        except_result_process(data);
+      }
+    });
+});
+
+$("body").on('click', '#tving_whitelist_program_btn', function(e){
+    e.preventDefault();
+    var program = $(this).data('program');
+    $.ajax({
+      url: '/' + tving_plugin + '/ajax/whitelist',
+      type: "POST",
+      cache: false,
+      data: {program:program},
+      dataType: "json",
+      success: function (data) {
+        except_result_process(data);
+      }
+    });
+});
+
+$("body").on('click', '#tving_except_program_btn', function(e){
+    e.preventDefault();
+    var program = $(this).data('program');
+    $.ajax({
+      url: '/' + tving_plugin + '/ajax/except',
+      type: "POST",
+      cache: false,
+      data: {program:program},
+      dataType: "json",
+      success: function (data) {
+        except_result_process(data);
+      }
+    });
+});
+
+function make_ratings_album(data, genre){
+	str = '';
+	str += '<hr>';
+	str += '<div class="row">';
+	for (var i = 0; i < Object.keys(data).length; i++) {
+        str += '<div class="col-md-2">';
+        str += '<div class="card mb-2 box-shadow">';
+        str += '<img class="card-img-top" src="'+data[i].image+'" class="img-fluid img-thumbnail">';
+        str += '<div class="card-body">';
+        str += '<p class="card-text">';
+        str += '<strong>' + data[i].title + '</strong>';
+        str += '<small class="text-muted">';
+        str += '<br>' + data[i].provider;
+        str += '<br>' + data[i].air_time;
+        if (data[i].ratings != '') str += '<br>' + data[i].ratings;
+        if (data[i].scheduled != '') str += '<br>' + data[i].scheduled;
+        str += '</small>';
+        str += '</p>';
+        str += '<div class="d-flex justify-content-between align-items-center">';
+        str += '<div class="btn-group">';
+        if (data[i].provider.includes('tvN')) {
+          str += '<button id="tving_whitelist_program_btn" name="submit" type="button" class="btn btn-sm btn-outline-secondary" data-program="'+data[i].title+'">T</button>';
+        } else if (data[i].provider.includes('JTBC') || data[i].provider.includes('채널A') || data[i].provider.includes('TV조선') || data[i].provider.includes('MBN') || data[i].provider.includes('Mnet') || data[i].provider.includes('올리브')) {
+          str += '<button id="wavve_whitelist_program_btn" name="submit" type="button" class="btn btn-sm btn-outline-secondary" data-program="'+data[i].title+'">W</button>';
+          str += '<button id="tving_whitelist_program_btn" name="submit" type="button" class="btn btn-sm btn-outline-secondary" data-program="'+data[i].title+'">T</button>';
+        } else {
+          str += '<button id="wavve_whitelist_program_btn" name="submit" type="button" class="btn btn-sm btn-outline-secondary" data-program="'+data[i].title+'">W</button>';
+        }
+        str += '</div>';
+        str += '<small class="text-muted"></small>';
+        str += '</div>';
+        str += '</div>';
+        str += '</div>';
+        str += '</div>';
+	}
+	str += '</div>';
+
+	if(genre == 'ent')
+		document.getElementById("detail_ent").innerHTML = str;
+	if(genre == 'dra')
+		document.getElementById("detail_dra").innerHTML = str;
+}
+
+function make_ratings_list(data, genre){
+	str = '';
+	for (var i = 0; i < Object.keys(data).length; i++) {
+        str += '<hr>';
+        str += '<div class="row">';
+        str += '<div class="col-sm-2">';
+        str += '<img src="'+data[i].image+'" class="img-fluid img-thumbnail">';
+        str += '</div>';
+        str += '<div class="col-sm-10">'
+        str += '<div>';
+        str += '<strong>' + data[i].title;
+        str += '</strong>';
+        str += ' ' + data[i].provider;
+        str += '<br>' + data[i].air_time;
+        if (data[i].ratings != '') str += '<br>' + data[i].ratings;
+        if (data[i].scheduled != '') str += '<br>' + data[i].scheduled;
+        str += '</p>';
+        str += '</div>';
+        str += '<div>';
+        str += '<div class="btn-group btn-group-sm flex-wrap mr-2" role="group">';
+        if (data[i].provider.includes('tvN')) {
+          str += '<button id="tving_whitelist_program_btn" name="submit" type="button" class="btn btn-sm btn-outline-success" data-program="'+data[i].title+'">Tving 포함</button>';
+        } else if (data[i].provider.includes('JTBC') || data[i].provider.includes('채널A') || data[i].provider.includes('TV조선') || data[i].provider.includes('MBN') || data[i].provider.includes('Mnet') || data[i].provider.includes('올리브')) {
+          str += '<button id="wavve_whitelist_program_btn" name="submit" type="button" class="btn btn-sm btn-outline-success" data-program="'+data[i].title+'">Wavve 포함</button>';
+          str += '<button id="tving_whitelist_program_btn" name="submit" type="button" class="btn btn-sm btn-outline-success" data-program="'+data[i].title+'">Tving 포함</button>';
+        } else {
+          str += '<button id="wavve_whitelist_program_btn" name="submit" type="button" class="btn btn-sm btn-outline-success" data-program="'+data[i].title+'">Wavve 포함</button>';
+        }
+        str += '</div>';
+        str += '</div>';
+        str += '</div>';
+        str += '</div>';
+	}
+	str += '</div>';
+
+	if(genre == 'ent')
+		document.getElementById("detail_ent").innerHTML = str;
+	if(genre == 'dra')
+		document.getElementById("detail_dra").innerHTML = str;
+}
+
+function except_result_process(data) {
+  if ( data == 1) {
+    $.notify('<strong>추가하였습니다.</strong>', {
+      type: 'success'
+    });
+  } else if ( data == 0) {
+    $.notify('<strong>이미 설정되어 있습니다.</strong>', {
+      type: 'warning'
+    });
+  } else {
+    $.notify('<strong>Exception</strong>', {
+      type: 'warning'
+    });
+  }
+}
+
+</script>    
+{% endblock %}

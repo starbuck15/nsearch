@@ -1,0 +1,392 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div>
+  <nav> 
+    {{ macros.m_tab_head_start() }}
+      {{ macros.m_tab_head('설정', false) }}
+      {{ macros.m_tab_head('검색', true) }}
+    {{ macros.m_tab_head_end() }}
+  </nav>  
+
+  <div class="tab-content" id="nav-tabContent">
+    {{ macros.m_tab_content_start('검색', true) }}
+      <form>
+      {{ macros.setting_input_text_and_buttons('wavve_keyword', '웨이브 검색어', [['wavve_search', '검색'], ['go_wavve_search', '웨이브']]) }}
+      </form>
+      <form>
+      {{ macros.setting_input_text_and_buttons('tving_keyword', '티빙 검색어', [['tving_search', '검색'], ['go_tving_search', '티　빙']]) }}
+      </form>
+      <div id='list'></div>
+      <div id="list_more"></div>
+    {{ macros.m_tab_content_end() }}
+
+    {{ macros.m_tab_content_start('설정', false) }}
+      <form id="setting">
+      {{ macros.setting_input_text('wavve_plugin', 'wavve plugin name', value=arg['wavve_plugin'], desc='Wavve 플러그인 이름을 입력하세요. ') }}
+      {{ macros.setting_input_text('tving_plugin', 'tving plugin name', value=arg['tving_plugin'], desc='Tving 플러그인 이름을 입력하세요. ') }}
+      {{ macros.setting_select('list_method', '출력 방식', [['album', '앨범형'], ['list', '리스트형']], col='3', value=arg['list_method']) }}
+      {{ macros.setting_button([['setting_save_btn', '저장']]) }}
+      </form>
+    {{ macros.m_tab_content_end() }}
+
+  </div><!--tab-content-->
+</div> <!--전체-->
+
+
+<script type="text/javascript">
+var package_name = 'nsearch';
+var wavve_plugin = '{{arg['wavve_plugin']}}';
+var tving_plugin = '{{arg['tving_plugin']}}';
+
+$(document).ready(function(){
+
+  //설정 저장
+  $("#setting_save_btn").click(function(e) {
+    e.preventDefault();
+    var formData = get_formdata('#setting');
+    $.ajax({
+      url: '/' + package_name + '/ajax/setting_save',
+      type: "POST",
+      cache: false,
+      data: formData,
+      dataType: "json",
+      success: function (ret) {
+        if (ret == 1) {
+          $.notify('<strong>설정을 저장하였습니다.</strong>', {
+	          type: 'success'
+          });
+        }
+      }
+    });
+  });
+
+  // 검색
+  $("#wavve_search").click(function(e) {
+    e.preventDefault();
+    if ($("#wavve_keyword").val() == "") {
+      $.notify('<strong>검색어를 입력해 주세요.</strong>', {
+        type: 'warning'
+      });
+      return;
+    }
+    $.ajax({
+      url: '/' + package_name + '/ajax/wavve_search',
+      type: "POST",
+      cache: false,
+      data: {keyword:$("#wavve_keyword").val(), type:'all', page:1},
+      dataType: "json",
+      success: function (data) {
+        //if (data.data[1] == null) {
+        if (data.ret == false) {
+          $.notify('<strong>유효한 값이 아닙니다.</strong>', {
+            type: 'warning'
+          });
+        } else {
+          wavve_make_list(data);
+        }
+      }
+    });
+  });
+
+  // 프로그램 Next 버튼
+  $("body").on('click', '#wavve_more_btn', function(e){
+    e.preventDefault();
+    keyword = $(this).data('keyword');
+    type = 'all'
+    page = parseInt($(this).data('page')) + 1;
+    $.ajax({
+      url: '/' + package_name + '/ajax/wavve_search',
+      type: "POST",
+      cache: false,
+      data: {keyword:keyword, type:type, page:page},
+      dataType: "json",
+      success: function (data) {
+        wavve_make_list(data);
+      }
+    });
+  });
+
+  $("#go_wavve_search").click(function(e) {
+    e.preventDefault();
+    url = 'https://www.wavve.com/search/search?category=all&searchWord=' + $("#wavve_keyword").val();
+    window.open(url, '_blank');
+  });
+
+  // 검색
+  $("#tving_search").click(function(e) {
+    e.preventDefault();
+    if ($("#tving_keyword").val() == "") {
+      $.notify('<strong>검색어를 입력해 주세요.</strong>', {
+        type: 'warning'
+      });
+      return;
+    }
+    $.ajax({
+      url: '/' + package_name + '/ajax/tving_search',
+      type: "POST",
+      cache: false,
+      data: {keyword:$("#tving_keyword").val(), type:'all', page:1},
+      dataType: "json",
+      success: function (data) {
+        if (data.ret == 0) {
+          $.notify('<strong>유효한 값이 아닙니다.</strong>', {
+            type: 'warning'
+          });
+        } else {
+          tving_make_list(data);
+        }
+      }
+    });
+  });
+
+  // 프로그램 Next 버튼
+  $("body").on('click', '#tving_more_btn', function(e){
+    e.preventDefault();
+    keyword = $(this).data('keyword');
+    type = 'all'
+    page = parseInt($(this).data('page')) + 1;
+    $.ajax({
+      url: '/' + package_name + '/ajax/tving_search',
+      type: "POST",
+      cache: false,
+      data: {keyword:keyword, type:type, page:page},
+      dataType: "json",
+      success: function (data) {
+        tving_make_list(data);
+      }
+    });
+  });
+
+  $("#go_tving_search").click(function(e) {
+    e.preventDefault();
+    url = 'http://www.tving.com/find/main.do?kwd=' + $("#tving_keyword").val() + '#id=program';
+    window.open(url, '_blank');
+  });
+
+  $("body").on('click', '#wavve_program_basic_analyze', function(e){
+    e.preventDefault();
+    code = $(this).data('code');
+    var redirect = '/' + wavve_plugin + '/basic';
+    $.redirectPost(redirect, {code: code});
+    $(location).attr('href', '/' + wavve_plugin + '/basic?code=' + code)
+  });
+
+  $("body").on('click', '#wavve_program_series_analyze', function(e){
+    e.preventDefault();
+    code = $(this).data('code');
+    var redirect = '#다운로드';
+    $.redirectPost(redirect, {code: code});
+    $(location).attr('href', '/' + wavve_plugin + '/series?code=' + code)
+  });
+
+  $("body").on('click', '#wavve_except_program_btn', function(e){
+    e.preventDefault();
+    var program = $(this).data('program');
+    $.ajax({
+      url: '/' + wavve_plugin + '/ajax/except',
+      type: "POST",
+      cache: false,
+      data: {program:program},
+      dataType: "json",
+      success: function (data) {
+        except_result_process(data);
+      }
+    });
+  });
+
+  $("body").on('click', '#wavve_whitelist_program_btn', function(e){
+    e.preventDefault();
+    var program = $(this).data('program');
+    $.ajax({
+      url: '/' + wavve_plugin + '/ajax/whitelist',
+      type: "POST",
+      cache: false,
+      data: {program:program},
+      dataType: "json",
+      success: function (data) {
+        except_result_process(data);
+      }
+    });
+  });
+
+  $("body").on('click', '#tving_program_basic_analyze', function(e){
+    e.preventDefault();
+    code = $(this).data('code');
+    var redirect = '/' + tving_plugin + '/basic';
+    $.redirectPost(redirect, {code: code});
+    $(location).attr('href', '/' + tving_plugin + '/basic?code=' + code)
+  });
+
+  $("body").on('click', '#tving_program_series_analyze', function(e){
+    e.preventDefault();
+    code = $(this).data('code');
+    var redirect = '#다운로드';
+    $.redirectPost(redirect, {code: code});
+    $(location).attr('href', '/' + tving_plugin + '/series?code=' + code)
+  });
+
+  $("body").on('click', '#tving_except_program_btn', function(e){
+    e.preventDefault();
+    var program = $(this).data('program');
+    $.ajax({
+      url: '/' + tving_plugin + '/ajax/except',
+      type: "POST",
+      cache: false,
+      data: {program:program},
+      dataType: "json",
+      success: function (data) {
+        except_result_process(data);
+      }
+    });
+  });
+
+  $("body").on('click', '#tving_whitelist_program_btn', function(e){
+    e.preventDefault();
+    var program = $(this).data('program');
+    $.ajax({
+      url: '/' + tving_plugin + '/ajax/whitelist',
+      type: "POST",
+      cache: false,
+      data: {program:program},
+      dataType: "json",
+      success: function (data) {
+        except_result_process(data);
+      }
+    });
+  });
+});
+
+function except_result_process(data) {
+  if ( data == 1) {
+    $.notify('<strong>추가하였습니다.</strong>', {
+      type: 'success'
+    });
+  } else if ( data == 0) {
+    $.notify('<strong>이미 설정되어 있습니다.</strong>', {
+      type: 'warning'
+    });
+  } else {
+    $.notify('<strong>Exception</strong>', {
+      type: 'warning'
+    });
+  }
+}
+
+function wavve_make_list(ret) {
+  current_data = ret
+  //window.scrollTo(0,0);
+  //document.getElementById("modal_title").innerHTML = "Login Result";
+  //document.getElementById("modal_body").innerHTML = "<pre>"+JSON.stringify(ret, null, 2) + "</pre>";
+  //$("#large_modal").modal();
+  data = ret.data[1].list;
+  str = '';
+  for (var i = 0; i < data.length; i++) {
+    str += '<hr>';
+    str += '<div class="row">';
+    str += '<div class="col-sm-2">'
+    if (data[i].programposterimage != null)  {
+    str += '<img src="http://' + data[i].programposterimage.replace('.jpg','_w720_h1038_q75.jpg') + '" class="img-fluid">'
+    }
+    str += '</div>';
+    str += '<div class="col-sm-10">'
+    str += '<div>';
+    str += '<strong>' + data[i].programtitle + '  '
+    str += '</strong>';
+    if (data[i].vodweekdaytag != '') {
+     str += ' (' + data[i].vodweekdaytag + ')'
+    }
+    str += ' ' + data[i].channelname
+    str += '<br><p>';
+    str += '<strong>프로그램ID</strong> : '
+    str += data[i].programid;
+    str += '<br>';
+    str += '<strong>마지막방영일</strong> : '
+    str += data[i].releasedate;
+    if ( data[i].programsynopsis != null)
+              str += '<p>' + data[i].programsynopsis.replace('\n', '<br>') + '<p>';
+    str += '</div>';
+    str += '<div>';
+    str += '<div class="btn-group btn-group-sm flex-wrap mr-2" role="group">';
+    str += ' <button id="wavve_program_basic_analyze" name="submit" class="btn btn-sm  btn-outline-success" data-code="'+data[i].programid+'">분석</button>';
+    //str += ' <button id="wavve_program_series_analyze" name="submit" class="btn btn-sm  btn-outline-success" data-code="'+data[i].programid+'">시리즈 - 분석</button>';
+    str += ' <button id="wavve_whitelist_program_btn" name="submit" class="btn btn-sm  btn-outline-success" data-program="'+data[i].programtitle+'">자동 - 포함</button>';
+    str += ' <button id="wavve_except_program_btn" name="submit" class="btn btn-sm  btn-outline-success" data-program="'+data[i].programtitle+'">자동 - 제외</button>';
+    str += '</div>';
+    str += '</div>';
+    str += '</div>';
+    str += '</div>';
+  }
+  if (ret.page == '1') {
+    document.getElementById("list").innerHTML = str;
+  } else {
+    document.getElementById("list").innerHTML += str;
+  }
+
+  if (data.length >= 20) {
+    str = '<div class="d-inline-block"></div><form>';
+    str += '<button id="wavve_more_btn" class="btn btn-outline-secondary btn-lg btn-block" type="button" data-keyword="'+ret.keyword+'" data-page="'+ret.page+'">More</button>'
+    str += '</form>';
+    document.getElementById("list_more").innerHTML = str;
+  } else {
+    document.getElementById("list_more").innerHTML = '';
+  }
+}
+
+function tving_make_list(ret) {
+  current_data = ret
+  //window.scrollTo(0,0);
+  //document.getElementById("modal_title").innerHTML = "Login Result";
+  //document.getElementById("modal_body").innerHTML = "<pre>"+JSON.stringify(ret, null, 2) + "</pre>";
+  //$("#large_modal").modal();
+  data = ret.data;
+  str = '';
+  for (var i = 0; i < data.length; i++) {
+    str += '<hr>';
+    str += '<div class="row">';
+    str += '<div class="col-sm-2">'
+    if (data[i].web_url != null)  {
+      str += '<img src="' + 'http://image.tving.com' + data[i].web_url + '/dims/resize/360/crop/360x202.5' + '" class="img-fluid">'
+    }
+    str += '</div>';
+    str += '<div class="col-sm-10">'
+    str += '<div>';
+    str += '<strong>' + data[i].mast_nm + '  '
+    str += '</strong>';
+    str += '<br><p>';
+    str += '<strong>프로그램ID</strong> : '
+    str += data[i].mast_cd;
+    str += '<br>';
+    str += '<strong>방영일</strong> : '
+    str += data[i].broad_dt;
+    if ( data[i].mast_synop != null)
+              str += '<p>' + data[i].mast_synop.replace('\n', '<br>') + '<p>';
+    str += '</div>';
+    str += '<div>';
+    str += '<div class="btn-group btn-group-sm flex-wrap mr-2" role="group">';
+    str += ' <button id="tving_program_basic_analyze" name="submit" class="btn btn-sm  btn-outline-success" data-code="'+data[i].mast_cd+'">분석</button>';
+    //str += ' <button id="tving_program_series_analyze" name="submit" class="btn btn-sm  btn-outline-success" data-code="'+data[i].mast_cd+'">시리즈 - 분석</button>';
+    str += ' <button id="tving_whitelist_program_btn" name="submit" class="btn btn-sm  btn-outline-success" data-program="'+data[i].mast_nm+'">자동 - 포함</button>';
+    str += ' <button id="tving_except_program_btn" name="submit" class="btn btn-sm  btn-outline-success" data-program="'+data[i].mast_nm+'">자동 - 제외</button>';
+    str += '</div>';
+    str += '</div>';
+    str += '</div>';
+    str += '</div>';
+  }
+  if (ret.page == '1') {
+    document.getElementById("list").innerHTML = str;
+  } else {
+    document.getElementById("list").innerHTML += str;
+  }
+
+  if (data.length >= 50) {
+    str = '<div class="d-inline-block"></div><form>';
+    str += '<button id="tving_more_btn" class="btn btn-outline-secondary btn-lg btn-block" type="button" data-keyword="'+ret.keyword+'" data-page="'+ret.page+'">More</button>'
+    str += '</form>';
+    document.getElementById("list_more").innerHTML = str;
+  } else {
+    document.getElementById("list_more").innerHTML = '';
+  }
+}
+</script>
+{% endblock %}
