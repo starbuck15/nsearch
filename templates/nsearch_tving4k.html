@@ -23,9 +23,9 @@
 
 <script type="text/javascript">
 var package_name = 'nsearch';
-var wavve_plugin = '{{arg['wavve_plugin']}}';
-var tving_plugin = '{{arg['tving_plugin']}}';
-var list_method = '{{arg['list_method']}}';
+var wavve_plugin = "{{arg['wavve_plugin']}}";
+var tving_plugin = "{{arg['tving_plugin']}}";
+var list_method = "{{arg['list_method']}}";
 
 $(document).ready(function(){
   $.ajax({
@@ -74,10 +74,16 @@ $(document).ready(function(){
   $("body").on('click', '#tving_program_basic_analyze', function(e){
     e.preventDefault();
     code = $(this).data('code');
-    var redirect = '/' + tving_plugin + '/basic';
-    $.redirectPost(redirect, {code: code});
-    $(location).attr('href', '/' + tving_plugin + '/basic?code=' + code)
+    $(location).attr('href', '/' + tving_plugin + '/program/select?code=' + code)
   });
+
+  $("body").on('click', '#tving_movie_analyze', function(e){
+    e.preventDefault();
+    code = $(this).data('code');
+    $(location).attr('href', '/' + tving_plugin + '/basic/download?code=' + code)
+  });
+
+  
 
   $("body").on('click', '#tving_program_series_analyze', function(e){
     e.preventDefault();
@@ -163,7 +169,7 @@ function tving_make_album2(ret){
     str += '</p>';
     str += '<div class="d-flex justify-content-between align-items-center">';
     str += '<div class="btn-group">';
-    //str += '<button id="tving_program_basic_analyze" name="submit" type="button" class="btn btn-sm  btn-outline-secondary" data-code="'+data[i].content_code+'">분석</button>';
+    str += ' <button id="tving_movie_analyze" name="submit" type="button" class="btn btn-sm  btn-outline-secondary" data-code="'+data[i].content_code+'">분석</button>';
     str += '<button id="go_tving_movie" name="submit" type="button" class="btn btn-sm  btn-outline-secondary" data-code="'+data[i].content_code+'">티빙</button>';
     str += '</div>';
     str += '</div>';
@@ -219,7 +225,6 @@ function tving_make_list(ret) {
     str += '<div>';
     str += '<div class="btn-group btn-group-sm flex-wrap mr-2" role="group">';
     str += ' <button id="tving_program_basic_analyze" name="submit" class="btn btn-sm  btn-outline-success" data-code="'+data[i].content_code+'">분석</button>';
-    //str += ' <button id="tving_program_series_analyze" name="submit" class="btn btn-sm  btn-outline-success" data-code="'+data[i].content_code+'">시리즈 - 분석</button>';
     str += ' <button id="go_tving_vod" name="submit" type="button" class="btn btn-sm  btn-outline-success" data-code="'+data[i].content_code+'">티빙</button>';
     str += '</div>';
     str += '</div>';
@@ -269,7 +274,7 @@ function tving_make_list2(ret) {
     str += '</div>';
     str += '<div>';
     str += '<div class="btn-group btn-group-sm flex-wrap mr-2" role="group">';
-    //str += ' <button id="tving_program_basic_analyze" name="submit" class="btn btn-sm  btn-outline-success" data-code="'+data[i].content_code+'">분석</button>';
+    str += ' <button id="tving_movie_analyze" name="submit" class="btn btn-sm  btn-outline-success" data-code="'+data[i].content_code+'">분석</button>';
     str += ' <button id="go_tving_movie" name="submit" type="button" class="btn btn-sm  btn-outline-success" data-code="'+data[i].content_code+'">티빙</button>';
     str += '</div>';
     str += '</div>';

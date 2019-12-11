@@ -85,63 +85,28 @@ $("#search_ent1,#search_ent2,#search_ent3,#search_ent4,#search_ent5,#search_ent6
 });
 
 $("body").on('click', '#wavve_whitelist_program_btn', function(e){
-    e.preventDefault();
-    var program = $(this).data('program');
-    $.ajax({
-      url: '/' + wavve_plugin + '/ajax/whitelist',
-      type: "POST",
-      cache: false,
-      data: {program:program},
-      dataType: "json",
-      success: function (data) {
-        except_result_process(data);
-      }
-    });
+  e.preventDefault();
+  var program = $(this).data('program');
+  add_condition_list(wavve_plugin, 'whitelist_program', $(this).data('program'))
 });
 
 $("body").on('click', '#wavve_except_program_btn', function(e){
-    e.preventDefault();
-    var program = $(this).data('program');
-    $.ajax({
-      url: '/' + wavve_plugin + '/ajax/except',
-      type: "POST",
-      cache: false,
-      data: {program:program},
-      dataType: "json",
-      success: function (data) {
-        except_result_process(data);
-      }
-    });
+  e.preventDefault();
+  var program = $(this).data('program');
+  add_condition_list(wavve_plugin, 'except_program', $(this).data('program'))
 });
+
 
 $("body").on('click', '#tving_whitelist_program_btn', function(e){
     e.preventDefault();
     var program = $(this).data('program');
-    $.ajax({
-      url: '/' + tving_plugin + '/ajax/whitelist',
-      type: "POST",
-      cache: false,
-      data: {program:program},
-      dataType: "json",
-      success: function (data) {
-        except_result_process(data);
-      }
-    });
+    add_condition_list(tving_plugin, 'whitelist_program', $(this).data('program'))
 });
 
 $("body").on('click', '#tving_except_program_btn', function(e){
-    e.preventDefault();
-    var program = $(this).data('program');
-    $.ajax({
-      url: '/' + tving_plugin + '/ajax/except',
-      type: "POST",
-      cache: false,
-      data: {program:program},
-      dataType: "json",
-      success: function (data) {
-        except_result_process(data);
-      }
-    });
+  e.preventDefault();
+  var program = $(this).data('program');
+  add_condition_list(tving_plugin, 'except_program', $(this).data('program'))
 });
 
 function make_ratings_album(data, genre){
@@ -228,20 +193,29 @@ function make_ratings_list(data, genre){
 		document.getElementById("detail_dra").innerHTML = str;
 }
 
-function except_result_process(data) {
-  if ( data == 1) {
-    $.notify('<strong>추가하였습니다.</strong>', {
-      type: 'success'
-    });
-  } else if ( data == 0) {
-    $.notify('<strong>이미 설정되어 있습니다.</strong>', {
-      type: 'warning'
-    });
-  } else {
-    $.notify('<strong>Exception</strong>', {
-      type: 'warning'
-    });
-  }
+function add_condition_list(plugin, mode, value) {
+  $.ajax({
+    url: '/' + plugin + '/ajax/add_condition_list',
+    type: "POST", 
+    cache: false,
+    data: {mode:mode, value:value},
+    dataType: "json",
+    success: function (data) {
+      if ( data == 1) {
+        $.notify('<strong>추가하였습니다.</strong>', {
+          type: 'success'
+        });
+      } else if ( data == 0) {
+        $.notify('<strong>이미 설정되어 있습니다.</strong>', {
+          type: 'warning'
+        });
+      } else {
+        $.notify('<strong>Exception</strong>', {
+          type: 'warning'
+        });
+      }
+    }
+  });
 }
 
 </script>    

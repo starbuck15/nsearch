@@ -167,111 +167,37 @@ $(document).ready(function(){
   $("body").on('click', '#wavve_program_basic_analyze', function(e){
     e.preventDefault();
     code = $(this).data('code');
-    var redirect = '/' + wavve_plugin + '/basic';
-    $.redirectPost(redirect, {code: code});
-    $(location).attr('href', '/' + wavve_plugin + '/basic?code=' + code)
-  });
-
-  $("body").on('click', '#wavve_program_series_analyze', function(e){
-    e.preventDefault();
-    code = $(this).data('code');
-    var redirect = '#다운로드';
-    $.redirectPost(redirect, {code: code});
-    $(location).attr('href', '/' + wavve_plugin + '/series?code=' + code)
+    $(location).attr('href', '/' + wavve_plugin + '/program/select?code=' + code)
   });
 
   $("body").on('click', '#wavve_except_program_btn', function(e){
     e.preventDefault();
-    var program = $(this).data('program');
-    $.ajax({
-      url: '/' + wavve_plugin + '/ajax/except',
-      type: "POST",
-      cache: false,
-      data: {program:program},
-      dataType: "json",
-      success: function (data) {
-        except_result_process(data);
-      }
-    });
+    add_condition_list(wavve_plugin, 'except_program', $(this).data('program'))
   });
 
   $("body").on('click', '#wavve_whitelist_program_btn', function(e){
     e.preventDefault();
-    var program = $(this).data('program');
-    $.ajax({
-      url: '/' + wavve_plugin + '/ajax/whitelist',
-      type: "POST",
-      cache: false,
-      data: {program:program},
-      dataType: "json",
-      success: function (data) {
-        except_result_process(data);
-      }
-    });
+    add_condition_list(wavve_plugin, 'whitelist_program', $(this).data('program'))
   });
 
   $("body").on('click', '#tving_program_basic_analyze', function(e){
     e.preventDefault();
     code = $(this).data('code');
-    var redirect = '/' + tving_plugin + '/basic';
-    $.redirectPost(redirect, {code: code});
-    $(location).attr('href', '/' + tving_plugin + '/basic?code=' + code)
+    $(location).attr('href', '/' + tving_plugin + '/program/select?code=' + code)
   });
 
-  $("body").on('click', '#tving_program_series_analyze', function(e){
-    e.preventDefault();
-    code = $(this).data('code');
-    var redirect = '#다운로드';
-    $.redirectPost(redirect, {code: code});
-    $(location).attr('href', '/' + tving_plugin + '/series?code=' + code)
-  });
 
   $("body").on('click', '#tving_except_program_btn', function(e){
     e.preventDefault();
-    var program = $(this).data('program');
-    $.ajax({
-      url: '/' + tving_plugin + '/ajax/except',
-      type: "POST",
-      cache: false,
-      data: {program:program},
-      dataType: "json",
-      success: function (data) {
-        except_result_process(data);
-      }
-    });
+    add_condition_list(tving_plugin, 'except_program', $(this).data('program'))
   });
 
   $("body").on('click', '#tving_whitelist_program_btn', function(e){
     e.preventDefault();
-    var program = $(this).data('program');
-    $.ajax({
-      url: '/' + tving_plugin + '/ajax/whitelist',
-      type: "POST",
-      cache: false,
-      data: {program:program},
-      dataType: "json",
-      success: function (data) {
-        except_result_process(data);
-      }
-    });
+    add_condition_list(tving_plugin, 'whitelist_program', $(this).data('program'))
   });
 });
 
-function except_result_process(data) {
-  if ( data == 1) {
-    $.notify('<strong>추가하였습니다.</strong>', {
-      type: 'success'
-    });
-  } else if ( data == 0) {
-    $.notify('<strong>이미 설정되어 있습니다.</strong>', {
-      type: 'warning'
-    });
-  } else {
-    $.notify('<strong>Exception</strong>', {
-      type: 'warning'
-    });
-  }
-}
 
 function wavve_make_list(ret) {
   current_data = ret
@@ -387,6 +313,31 @@ function tving_make_list(ret) {
   } else {
     document.getElementById("list_more").innerHTML = '';
   }
+}
+
+function add_condition_list(plugin, mode, value) {
+  $.ajax({
+    url: '/' + plugin + '/ajax/add_condition_list',
+    type: "POST", 
+    cache: false,
+    data: {mode:mode, value:value},
+    dataType: "json",
+    success: function (data) {
+      if ( data == 1) {
+        $.notify('<strong>추가하였습니다.</strong>', {
+          type: 'success'
+        });
+      } else if ( data == 0) {
+        $.notify('<strong>이미 설정되어 있습니다.</strong>', {
+          type: 'warning'
+        });
+      } else {
+        $.notify('<strong>Exception</strong>', {
+          type: 'warning'
+        });
+      }
+    }
+  });
 }
 </script>
 {% endblock %}

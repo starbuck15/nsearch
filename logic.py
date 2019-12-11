@@ -28,7 +28,7 @@ logger = logging.getLogger(package_name)
 
 
 class Logic(object):
-    db_default = {'wavve_plugin': 'pooq',
+    db_default = {'wavve_plugin': 'wavve',
                  'tving_plugin': 'tving',
                  'list_method': 'album'}
     current_keyword = None
