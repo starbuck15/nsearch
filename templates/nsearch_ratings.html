@@ -129,9 +129,9 @@ function make_ratings_album(data, genre){
         str += '</p>';
         str += '<div class="d-flex justify-content-between align-items-center">';
         str += '<div class="btn-group">';
-        if (data[i].provider.includes('tvN')) {
+        if (data[i].provider.includes('tvN') || data[i].provider.includes('JTBC')) {
           str += '<button id="tving_whitelist_program_btn" name="submit" type="button" class="btn btn-sm btn-outline-secondary" data-program="'+data[i].title+'">T</button>';
-        } else if (data[i].provider.includes('JTBC') || data[i].provider.includes('채널A') || data[i].provider.includes('TV조선') || data[i].provider.includes('MBN') || data[i].provider.includes('Mnet') || data[i].provider.includes('올리브')) {
+        } else if (data[i].provider.includes('채널A') || data[i].provider.includes('TV조선') || data[i].provider.includes('MBN') || data[i].provider.includes('Mnet') || data[i].provider.includes('올리브')) {
           str += '<button id="wavve_whitelist_program_btn" name="submit" type="button" class="btn btn-sm btn-outline-secondary" data-program="'+data[i].title+'">W</button>';
           str += '<button id="tving_whitelist_program_btn" name="submit" type="button" class="btn btn-sm btn-outline-secondary" data-program="'+data[i].title+'">T</button>';
         } else {
