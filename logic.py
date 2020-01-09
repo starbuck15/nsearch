@@ -22,7 +22,7 @@ from framework.util import Util
 import system
 from .model import ModelSetting
 
-package_name = __name__.split('.')[0].split('_sjva')[0]
+package_name = __name__.split('.')[0]
 logger = logging.getLogger(package_name)
 #########################################################
 

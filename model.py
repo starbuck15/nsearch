@@ -13,7 +13,7 @@ from framework import db, app, path_app_root
 
 
 # 로그
-package_name = __name__.split('.')[0].split('_sjva')[0]
+package_name = __name__.split('.')[0]
 logger = get_logger(package_name)
 
 if app.config['config']['run_by_real']:

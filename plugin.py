@@ -21,7 +21,7 @@ from system.logic import SystemLogic
 from .logic import Logic
 from .model import ModelSetting
 
-package_name = __name__.split('.')[0].split('_sjva')[0]
+package_name = __name__.split('.')[0]
 logger = get_logger(package_name)
 
 blueprint = Blueprint(package_name, package_name, url_prefix='/%s' %  package_name, template_folder=os.path.join(os.path.dirname(__file__), 'templates'))
@@ -33,15 +33,15 @@ def plugin_unload():
     Logic.plugin_unload()
 
 plugin_info = {
-    'version' : '0.0.1',
+    'version' : '0.0.2',
     'name' : 'nSearch',
     'category_name' : 'vod',
     'icon' : '',
     'developer' : 'starbuck',
     'description' : 'Search',
-    'home' : 'https://github.com/starbuck15/nsearch_sjva',
-    'more' : 'https://github.com/starbuck15/nsearch_sjva',
-    'zip' : 'https://github.com/starbuck15/nsearch_sjva/archive/master.zip'
+    'home' : 'https://github.com/starbuck15/nsearch',
+    'more' : 'https://github.com/starbuck15/nsearch',
+    'zip' : 'https://github.com/starbuck15/nsearch/archive/master.zip'
 }
 #########################################################
 
