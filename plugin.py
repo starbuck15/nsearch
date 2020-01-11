@@ -33,7 +33,7 @@ def plugin_unload():
     Logic.plugin_unload()
 
 plugin_info = {
-    'version' : '0.0.2',
+    'version' : '0.0.3',
     'name' : 'nSearch',
     'category_name' : 'vod',
     'icon' : '',

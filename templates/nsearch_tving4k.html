@@ -163,7 +163,8 @@ function tving_make_album2(ret){
     str += '<p class="card-text">';
     str += '<strong>' + data[i].content.movie.name.ko + '</strong>';
     str += '<small class="text-muted">';
-    str += '<br>' + ' (' + data[i].content.movie.product_year + ')';
+    str += '<br>' + ' (' + data[i].content.movie.product_year + ' 제작';
+    str += ', ' + data[i].content.movie.release_date + ' 개봉)';
     str += '<br>' + data[i].content_code;
     str += '</small>';
     str += '</p>';
@@ -264,7 +265,8 @@ function tving_make_list2(ret) {
     str += '<div>';
     str += '<strong>' + data[i].content.movie.name.ko;
     str += '</strong>';
-    str += ' (' + data[i].content.movie.product_year + ')';
+    str += ' (' + data[i].content.movie.product_year + ' 제작';
+    str += ', ' + data[i].content.movie.release_date + ' 개봉)';
     str += '<br><p>';
     str += '<strong>프로그램ID</strong> : '
     str += data[i].content_code;
