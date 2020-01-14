@@ -267,15 +267,24 @@ class Logic(object):
                 data_item = {}
                 data_item['channel_name'] = item.channelname
                 data_item['program_name'] = item.programtitle.strip()
-                data_item['display'] = data_item['channel_name'] + ' ' + data_item['program_name']
-                
+                data_item['display'] = '[' + data_item['channel_name'] + '] ' + data_item['program_name']
                 if data_item['program_name'] in whitelist_programs:
                     data_item['whitelist'] = '1'
                     count = count + 1
+                    whitelist_programs.remove(data_item['program_name'])
                 else:
                     data_item['whitelist'] = '0'
                 data.append(data_item)
-                data.sort(key=lambda elem: elem['display'])
+            
+            for item in whitelist_programs:
+                data_item = {}
+                data_item['channel_name'] = ''
+                data_item['program_name'] = item.strip()
+                data_item['display'] = data_item['program_name']
+                data_item['whitelist'] = '1'
+                data.append(data_item)
+            
+            data.sort(key=lambda elem: elem['display'])
             return {'data': data, 
                     'count': count,
                     'total': len(data)}
@@ -306,15 +315,24 @@ class Logic(object):
                 data_item = {}
                 data_item['channel_name'] = item.channel_name
                 data_item['program_name'] = item.program_name.strip()
-                data_item['display'] = data_item['channel_name'] + ' ' + data_item['program_name']
-                
+                data_item['display'] = '[' + data_item['channel_name'] + '] ' + data_item['program_name']
                 if data_item['program_name'] in whitelist_programs:
                     data_item['whitelist'] = '1'
                     count = count + 1
+                    whitelist_programs.remove(data_item['program_name'])
                 else:
                     data_item['whitelist'] = '0'
                 data.append(data_item)
-                data.sort(key=lambda elem: elem['display'])    
+            
+            for item in whitelist_programs:
+                data_item = {}
+                data_item['channel_name'] = ''
+                data_item['program_name'] = item.strip()
+                data_item['display'] = data_item['program_name']
+                data_item['whitelist'] = '1'
+                data.append(data_item)
+            
+            data.sort(key=lambda elem: elem['display'])
             return {'data': data, 
                     'count': count,
                     'total': len(data)}

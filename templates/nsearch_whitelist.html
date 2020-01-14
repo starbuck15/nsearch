@@ -68,7 +68,7 @@ input.search-input{
 	    <form id="wavve_whitelist">
 	    <select multiple="multiple" class="searchable" name="wavve_whitelist[]">
         {% for item in wavve_programs.data %}
-        <option value="{{ item.program_name }}"{% if item.whitelist=='1' %} selected="selected"{% endif %}>[{{ item.channel_name }}] {{ item.program_name }}</option>
+        <option value="{{ item.program_name }}"{% if item.whitelist=='1' %} selected="selected"{% endif %}>{{ item.display }}</option>
         {% endfor %}
         </select>
         <div class="mt-3" align="right">
@@ -84,7 +84,7 @@ input.search-input{
 	    <form id="tving_whitelist">
 	    <select multiple="multiple" class="searchable" name="tving_whitelist[]">
         {% for item in tving_programs.data %}
-        <option value="{{ item.program_name }}"{% if item.whitelist=='1' %} selected="selected"{% endif %}>[{{ item.channel_name }}] {{ item.program_name }}</option>
+        <option value="{{ item.program_name }}"{% if item.whitelist=='1' %} selected="selected"{% endif %}>{{ item.display }}</option>
         {% endfor %} 
         </select>
         <div class="mt-3" align="right">
