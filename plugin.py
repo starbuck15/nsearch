@@ -33,7 +33,7 @@ def plugin_unload():
     Logic.plugin_unload()
 
 plugin_info = {
-    'version' : '0.0.3',
+    'version' : '0.0.4',
     'name' : 'nSearch',
     'category_name' : 'vod',
     'icon' : '',
@@ -49,7 +49,7 @@ plugin_info = {
 menu = {
     'main' : [package_name, '검색'],
     'sub' : [
-        ['search', '검색'], ['tving4k', '티빙 UHD 4K'], ['ratings', '시청률 순위'], ['log', '로그']
+        ['search', '검색'], ['ratings', '시청률 순위'], ['whitelist', '화이트리스트'], ['tving4k', '티빙 UHD 4K'], ['log', '로그']
     ],
     'category' : 'vod',
 }
@@ -77,20 +77,29 @@ def detail(sub):
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
 
-    if sub == 'tving4k':
-        try:
-            setting_list = db.session.query(ModelSetting).all()
-            arg = Util.db_list_to_dict(setting_list)
-            return render_template('%s_tving4k.html' % (package_name), arg=arg)
-        except Exception as e:
-            logger.error('Exception:%s', e)
-            logger.error(traceback.format_exc())
-
     if sub == 'ratings':
         try:
             setting_list = db.session.query(ModelSetting).all()
             arg = Util.db_list_to_dict(setting_list)
             return render_template('%s_ratings.html' % (package_name), arg=arg)
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
+    if sub == 'whitelist':
+        try:
+            wavve_programs = Logic.wavve_programs()
+            tving_programs = Logic.tving_programs()
+            return render_template('%s_whitelist.html' % (package_name), wavve_programs = wavve_programs, tving_programs = tving_programs) 
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
+    if sub == 'tving4k':
+        try:
+            setting_list = db.session.query(ModelSetting).all()
+            arg = Util.db_list_to_dict(setting_list)
+            return render_template('%s_tving4k.html' % (package_name), arg=arg)
         except Exception as e:
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
@@ -135,15 +144,6 @@ def ajax(sub):
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
 
-    elif sub == 'tving4k':
-        try:
-            type = request.form['type']
-            ret = Logic.tving_get_SMTV_PROG_4K_list(type)
-            return jsonify(ret)
-        except Exception as e:
-            logger.error('Exception:%s', e)
-            logger.error(traceback.format_exc())
-
     elif sub == 'ratings':
         try:
             keyword = request.form['keyword']
@@ -153,6 +153,31 @@ def ajax(sub):
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
             return jsonify('fail')
+
+    elif sub == 'wavve_whitelist_save':
+        try:
+            ret = Logic.wavve_whitelist_save(request)
+            return jsonify(ret)
+        except Exception as e: 
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
+    elif sub == 'tving_whitelist_save':
+        try:
+            ret = Logic.tving_whitelist_save(request)
+            return jsonify(ret)
+        except Exception as e: 
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
+    elif sub == 'tving4k':
+        try:
+            type = request.form['type']
+            ret = Logic.tving_get_SMTV_PROG_4K_list(type)
+            return jsonify(ret)
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
 
 #########################################################
 # API

@@ -244,3 +244,118 @@ class Logic(object):
         except Exception as e:
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
+            
+    @staticmethod
+    def wavve_programs():
+        try:
+            import datetime
+            from wavve.model import ModelSetting as ModelWavveSetting
+            from wavve.model import ModelWavveEpisode as ModelWavveEpisode
+            whitelist_program = ModelWavveSetting.get('whitelist_program')
+            whitelist_programs = [x.strip() for x in whitelist_program.replace('\n', ',').split(',')]
+            whitelist_programs = Util.get_list_except_empty(whitelist_programs)
+            month_ago = (datetime.date.today() - datetime.timedelta(days=30)).strftime('%Y-%m-%d')
+            # query = ModelWavveEpisode.query.filter((ModelWavveEpisode.call == 'auto') & (ModelWavveEpisode.releasedate > month_ago))
+            query = db.session.query(ModelWavveEpisode.programtitle, ModelWavveEpisode.channelname)
+            query = query.filter((ModelWavveEpisode.call == 'auto') & (ModelWavveEpisode.releasedate > month_ago))
+            query = query.group_by(ModelWavveEpisode.programtitle)
+            tmp = query.all()
+            
+            data = []
+            count = 0
+            for item in tmp:
+                data_item = {}
+                data_item['channel_name'] = item.channelname
+                data_item['program_name'] = item.programtitle.strip()
+                data_item['display'] = data_item['channel_name'] + ' ' + data_item['program_name']
+                
+                if data_item['program_name'] in whitelist_programs:
+                    data_item['whitelist'] = '1'
+                    count = count + 1
+                else:
+                    data_item['whitelist'] = '0'
+                data.append(data_item)
+                data.sort(key=lambda elem: elem['display'])
+            return {'data': data, 
+                    'count': count,
+                    'total': len(data)}
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
+
+    @staticmethod
+    def tving_programs():
+        try:
+            import datetime
+            from tving.model import ModelSetting as ModelTvingSetting
+            from tving.model import Episode as ModelTvingEpisode
+            whitelist_program = ModelTvingSetting.get('whitelist_program')
+            whitelist_programs = [x.strip() for x in whitelist_program.replace('\n', ',').split(',')]
+            whitelist_programs = Util.get_list_except_empty(whitelist_programs)
+            month_ago = (datetime.date.today() - datetime.timedelta(days=30)).strftime('%y%m%d')
+            # query = ModelTvingEpisode.query.filter((ModelTvingEpisode.call == 'auto') & (ModelTvingEpisode.broadcast_date > month_ago))
+            query = db.session.query(ModelTvingEpisode.program_name, ModelTvingEpisode.channel_name)
+            query = query.filter((ModelTvingEpisode.call == 'auto') & (ModelTvingEpisode.broadcast_date > month_ago))
+            query = query.group_by(ModelTvingEpisode.program_name)
+            tmp = query.all()
+            
+            data = []
+            count = 0
+            for item in tmp:
+                data_item = {}
+                data_item['channel_name'] = item.channel_name
+                data_item['program_name'] = item.program_name.strip()
+                data_item['display'] = data_item['channel_name'] + ' ' + data_item['program_name']
+                
+                if data_item['program_name'] in whitelist_programs:
+                    data_item['whitelist'] = '1'
+                    count = count + 1
+                else:
+                    data_item['whitelist'] = '0'
+                data.append(data_item)
+                data.sort(key=lambda elem: elem['display'])    
+            return {'data': data, 
+                    'count': count,
+                    'total': len(data)}
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
+    @staticmethod
+    def wavve_whitelist_save(req):
+        try:
+            from wavve.model import ModelSetting as ModelWavveSetting
+            whitelist_programs = req.form.getlist('wavve_whitelist[]')
+            whitelist_program = ', '.join(whitelist_programs)
+            logger.debug(whitelist_program)
+            whitelist_program = ModelWavveSetting.set('whitelist_program',whitelist_program)
+            # for key, value in req.form.items():
+            #     logger.debug('Key:%s Value:%s', key, value)
+            #     entity = db.session.query(ModelSetting).filter_by(key=key).with_for_update().first()
+            #     entity.value = value
+            # db.session.commit()
+            return True                  
+        except Exception as e: 
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+            return False
+
+    @staticmethod
+    def tving_whitelist_save(req):
+        try:
+            from tving.model import ModelSetting as ModelTvingSetting
+            whitelist_programs = req.form.getlist('tving_whitelist[]')
+            whitelist_program = ', '.join(whitelist_programs)
+            logger.debug(whitelist_program)
+            whitelist_program = ModelTvingSetting.set('whitelist_program',whitelist_program)
+            # for key, value in req.form.items():
+            #     logger.debug('Key:%s Value:%s', key, value)
+            #     entity = db.session.query(ModelSetting).filter_by(key=key).with_for_update().first()
+            #     entity.value = value
+            # db.session.commit()
+            return True                  
+        except Exception as e: 
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+            return False
