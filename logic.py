@@ -276,12 +276,13 @@ class Logic(object):
                     data_item['whitelist'] = '0'
                 data.append(data_item)
             
-            for item in whitelist_programs:
+            for item in list(set(whitelist_programs)):
                 data_item = {}
                 data_item['channel_name'] = ''
                 data_item['program_name'] = item.strip()
                 data_item['display'] = data_item['program_name']
                 data_item['whitelist'] = '1'
+                count = count + 1
                 data.append(data_item)
             
             data.sort(key=lambda elem: elem['display'])
@@ -324,12 +325,13 @@ class Logic(object):
                     data_item['whitelist'] = '0'
                 data.append(data_item)
             
-            for item in whitelist_programs:
+            for item in list(set(whitelist_programs)):
                 data_item = {}
                 data_item['channel_name'] = ''
                 data_item['program_name'] = item.strip()
                 data_item['display'] = data_item['program_name']
                 data_item['whitelist'] = '1'
+                count = count + 1
                 data.append(data_item)
             
             data.sort(key=lambda elem: elem['display'])
@@ -348,11 +350,6 @@ class Logic(object):
             whitelist_program = ', '.join(whitelist_programs)
             logger.debug(whitelist_program)
             whitelist_program = ModelWavveSetting.set('whitelist_program',whitelist_program)
-            # for key, value in req.form.items():
-            #     logger.debug('Key:%s Value:%s', key, value)
-            #     entity = db.session.query(ModelSetting).filter_by(key=key).with_for_update().first()
-            #     entity.value = value
-            # db.session.commit()
             return True                  
         except Exception as e: 
             logger.error('Exception:%s', e)
@@ -367,11 +364,6 @@ class Logic(object):
             whitelist_program = ', '.join(whitelist_programs)
             logger.debug(whitelist_program)
             whitelist_program = ModelTvingSetting.set('whitelist_program',whitelist_program)
-            # for key, value in req.form.items():
-            #     logger.debug('Key:%s Value:%s', key, value)
-            #     entity = db.session.query(ModelSetting).filter_by(key=key).with_for_update().first()
-            #     entity.value = value
-            # db.session.commit()
             return True                  
         except Exception as e: 
             logger.error('Exception:%s', e)
