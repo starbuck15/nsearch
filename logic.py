@@ -109,7 +109,7 @@ class Logic(object):
             params['limit'] = Logic.WAVVE_LIMIT
             params['orderby'] = 'score'
             url = '%s?%s' % (url, urllib.urlencode(params))
-            logger.debug('get_search_list:%s', url)
+            # logger.debug('get_search_list:%s', url)
             request = urllib2.Request(url)
             response = urllib2.urlopen(request)
             data = json.load(response, encoding='utf8')
@@ -146,7 +146,7 @@ class Logic(object):
             params['notFoundText'] = keyword
             param = '&siteName=TVING_WEB&category=PROGRAM&pageNum=%s&pageSize=50&indexType=both&methodType=allwordthruindex&payFree=ALL&runTime=ALL&grade=ALL&genre=ALL&screen=CSSD0100&os=CSOD0900&network=CSND0900&sort1=ins_dt&sort2=frequency&sort3=NO&type1=desc&type2=desc&type3=desc&fixedType=Y&spcMethod=someword&spcSize=0&adult_yn=&reKwd=&xwd=' % page
             url = '%s%s%s' % (url, urllib.urlencode(params), param)
-            logger.debug('get_program_list:%s', url)
+            # logger.debug('get_program_list:%s', url)
             request = urllib2.Request(url)
             response = urllib2.urlopen(request)
             data = json.load(response, encoding='utf8')
@@ -185,7 +185,7 @@ class Logic(object):
                 param = 'positionKey=SMTV_MV_4K&screenCode=CSSD1200&networkCode=CSND0900&osCode=CSOD0900&teleCode=CSCD0900&apiKey=aeef9047f92b9dc4ebabc71fe4b124bf&pocType=APP_Z_TVING_1.0&callback=__jp10'
             param = param.split('&callback=')[0]
             url = '%s%s%s' % (url, urllib.urlencode(params), param)
-            logger.debug('get_4k_list:%s', url)
+            # logger.debug('get_4k_list:%s', url)
             request = urllib2.Request(url)
             response = urllib2.urlopen(request)
             data = json.load(response, encoding='utf8')

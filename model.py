@@ -23,7 +23,6 @@ if app.config['config']['run_by_real']:
     app.config['SQLALCHEMY_BINDS'][package_name] = 'sqlite:///%s' % (db_file)
 
 
-
 class ModelSetting(db.Model):
     __tablename__ = 'plugin_%s_setting' % package_name
     __table_args__ = {'mysql_collate': 'utf8_general_ci'}

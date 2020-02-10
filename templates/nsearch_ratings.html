@@ -41,10 +41,10 @@
 <link href="https://getbootstrap.com/docs/4.0/examples/album/album.css" rel="stylesheet">
 
 <script type="text/javascript">
-var package_name = 'nsearch';
-var wavve_plugin = '{{arg['wavve_plugin']}}';
-var tving_plugin = '{{arg['tving_plugin']}}';
-var list_method = '{{arg['list_method']}}';
+var package_name = "nsearch";
+var wavve_plugin = "{{arg['wavve_plugin']}}";
+var tving_plugin = "{{arg['tving_plugin']}}";
+var list_method = "{{arg['list_method']}}";
 
 $("#search_dra1,#search_dra2,#search_dra3,#search_dra4").click(function(e) {
   e.preventDefault();
@@ -172,9 +172,9 @@ function make_ratings_list(data, genre){
         str += '</div>';
         str += '<div>';
         str += '<div class="btn-group btn-group-sm flex-wrap mr-2" role="group">';
-        if (data[i].provider.includes('tvN')) {
+        if (data[i].provider.includes('tvN') || data[i].provider.includes('JTBC')) {
           str += '<button id="tving_whitelist_program_btn" name="submit" type="button" class="btn btn-sm btn-outline-success" data-program="'+data[i].title+'">Tving 포함</button>';
-        } else if (data[i].provider.includes('JTBC') || data[i].provider.includes('채널A') || data[i].provider.includes('TV조선') || data[i].provider.includes('MBN') || data[i].provider.includes('Mnet') || data[i].provider.includes('올리브')) {
+        } else if (data[i].provider.includes('채널A') || data[i].provider.includes('TV조선') || data[i].provider.includes('MBN') || data[i].provider.includes('Mnet') || data[i].provider.includes('올리브')) {
           str += '<button id="wavve_whitelist_program_btn" name="submit" type="button" class="btn btn-sm btn-outline-success" data-program="'+data[i].title+'">Wavve 포함</button>';
           str += '<button id="tving_whitelist_program_btn" name="submit" type="button" class="btn btn-sm btn-outline-success" data-program="'+data[i].title+'">Tving 포함</button>';
         } else {
