@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div>
+  <nav> 
+    {{ macros.m_tab_head_start() }}
+      {{ macros.m_tab_head('전체', true) }}
+      {{ macros.m_tab_head('드라마', false) }}
+      {{ macros.m_tab_head('예능', false) }}
+      {{ macros.m_tab_head('교양', false) }}
+    {{ macros.m_tab_head_end() }}
+  </nav>  
+
+  <div class="tab-content" id="nav-tabContent">
+    {{ macros.m_tab_content_start('전체', true) }}
+      <div id="list" class="container"></div>
+    {{ macros.m_tab_content_end() }}
+    {{ macros.m_tab_content_start('드라마', false) }}
+      <div id="list2" class="container"></div>
+    {{ macros.m_tab_content_end() }}
+    {{ macros.m_tab_content_start('예능', false) }}
+      <div id="list3" class="container"></div>
+    {{ macros.m_tab_content_end() }}
+    {{ macros.m_tab_content_start('교양', false) }}
+      <div id="list4" class="container"></div>
+    {{ macros.m_tab_content_end() }}
+  </div><!--tab-content-->
+</div> <!--전체-->
+
+<link href="https://getbootstrap.com/docs/4.0/examples/album/album.css" rel="stylesheet">
+
+<script type="text/javascript">
+var package_name = 'nsearch';
+var wavve_plugin = "{{arg['wavve_plugin']}}";
+var tving_plugin = "{{arg['tving_plugin']}}";
+var list_method = "{{arg['list_method']}}";
+
+$(document).ready(function(){
+  $.ajax({
+    url: '/' + package_name + '/ajax/wavve_popular',
+    type: "POST",
+    cache: false,
+    data: {type:'all'},
+    dataType: "json",
+    success: function (data) {
+      if (list_method == 'album') {
+        wavve_make_album(data, "list");
+      } else {
+        wavve_make_album(data, "list");
+      }
+    }
+  });
+  $.ajax({
+    url: '/' + package_name + '/ajax/wavve_popular',
+    type: "POST",
+    cache: false,
+    data: {type:'dra'},
+    dataType: "json",
+    success: function (data) {
+      if (list_method == 'album') {
+        wavve_make_album(data, "list2");
+      } else {
+        wavve_make_album(data, "list2");
+      }
+    }
+  });
+  $.ajax({
+    url: '/' + package_name + '/ajax/wavve_popular',
+    type: "POST",
+    cache: false,
+    data: {type:'ent'},
+    dataType: "json",
+    success: function (data) {
+      if (list_method == 'album') {
+        wavve_make_album(data, "list3");
+      } else {
+        wavve_make_album(data, "list3");
+      }
+    }
+  });
+  $.ajax({
+    url: '/' + package_name + '/ajax/wavve_popular',
+    type: "POST",
+    cache: false,
+    data: {type:'doc'},
+    dataType: "json",
+    success: function (data) {
+      if (list_method == 'album') {
+        wavve_make_album(data, "list4");
+      } else {
+        wavve_make_album(data, "list4");
+      }
+    }
+  });
+
+  $("body").on('click', '#wavve_program_basic_analyze', function(e){
+    e.preventDefault();
+    code = $(this).data('code');
+    $(location).attr('href', '/' + wavve_plugin + '/program/select?code=' + code)
+  });
+
+  $("body").on('click', '#wavve_whitelist_program_btn', function(e){
+    e.preventDefault();
+    var program = $(this).data('program');
+    add_condition_list(wavve_plugin, 'whitelist_program', $(this).data('program'))
+  });
+
+});
+
+function wavve_make_album(ret, target){
+  data = ret.data.list;
+  // str = '총 ' + data.length + '편';
+  str = '';
+  str += '<hr>';
+  str += '<div class="row">';
+  for (var i = 0; i < Object.keys(data).length; i++) {
+    image_url = data[i].image;
+
+    str += '<div class="col-md-2">';
+    str += '<div class="card mb-2 box-shadow">';
+    str += '<img class="card-img-top" src="' + 'http://' + image_url.replace('.jpg','_w720_h1038_q75.jpg') + '" class="img-fluid img-thumbnail">';
+    str += '<div class="card-body">';
+    str += '<p class="card-text">';
+    str += '<strong>' + data[i].programtitle + '</strong>';
+    str += '<small class="text-muted">';
+    str += '<br>' + ' (' + data[i].releasedate + ')';
+    str += '<br>' + data[i].channelname;
+    str += '<br>' + data[i].programid;
+    str += '</small>';
+    str += '</p>';
+    str += '<div class="d-flex justify-content-between align-items-center">';
+    str += '<div class="btn-group">';
+    str += '<button id="wavve_program_basic_analyze" name="submit" type="button" class="btn btn-sm btn-outline-secondary" data-code="'+data[i].programid+'">분석</button>';
+    str += '<button id="wavve_whitelist_program_btn" name="submit" type="button" class="btn btn-sm btn-outline-secondary" data-program="'+data[i].programtitle+'">추가</button>';
+    str += '</div>';
+    str += '</div>';
+    str += '</div>';
+    str += '</div>';
+    str += '</div>';
+  }
+  str += '</div>';
+
+  document.getElementById(target).innerHTML = str;
+}
+
+// function wavve_make_album_cf(ret, target){
+//   data = ret.data.cell_toplist.celllist;
+//   str = '총 ' + data.length + '편';
+//   str += '<hr>';
+//   str += '<div class="row">';
+//   for (var i = 0; i < Object.keys(data).length; i++) {
+//     image_url = data[i].thumbnail;
+
+//     str += '<div class="col-md-2">';
+//     str += '<div class="card mb-2 box-shadow">';
+//     str += '<img class="card-img-top" src="' + 'http://' + image_url + '" class="img-fluid img-thumbnail">';
+//     str += '<div class="card-body">';
+//     str += '<p class="card-text">';
+//     str += '<strong>' + data[i].title_list[0].text + '</strong>';
+//     str += '<small class="text-muted">';
+//     str += '<br>' + data[i].event_list[0].bodylist[0].uicode;
+//     str += '</small>';
+//     str += '</p>';
+//     str += '<div class="d-flex justify-content-between align-items-center">';
+//     str += '<div class="btn-group">';
+//     str += '<button id="wavve_program_basic_analyze" name="submit" type="button" class="btn btn-sm btn-outline-secondary" data-code="'+data[i].event_list[0].bodylist[0].uicode+'">분석</button>';
+//     str += '<button id="wavve_whitelist_program_btn" name="submit" type="button" class="btn btn-sm btn-outline-secondary" data-program="'+data[i].title_list[0].text+'">추가</button>';
+//     str += '</div>';
+//     str += '</div>';
+//     str += '</div>';
+//     str += '</div>';
+//     str += '</div>';
+//   }
+//   str += '</div>';
+
+//   document.getElementById(target).innerHTML = str;
+// }
+
+function add_condition_list(plugin, mode, value) {
+  $.ajax({
+    url: '/' + plugin + '/ajax/add_condition_list',
+    type: "POST", 
+    cache: false,
+    data: {mode:mode, value:value},
+    dataType: "json",
+    success: function (data) {
+      if ( data == 1) {
+        $.notify('<strong>추가하였습니다.</strong>', {
+          type: 'success'
+        });
+      } else if ( data == 0) {
+        $.notify('<strong>이미 설정되어 있습니다.</strong>', {
+          type: 'warning'
+        });
+      } else {
+        $.notify('<strong>Exception</strong>', {
+          type: 'warning'
+        });
+      }
+    }
+  });
+}
+</script>    
+{% endblock %}

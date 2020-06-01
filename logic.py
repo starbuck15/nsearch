@@ -175,6 +175,119 @@ class Logic(object):
             logger.error(traceback.format_exc())
 
     @staticmethod
+    def wavve_get_popular(type='all'):
+        try:
+            url = 'https://apis.pooq.co.kr/vod/popularcontents'
+            params = Logic.WAVVE_DEFAULT_PARAM.copy()
+            params['genre'] = '01' # 01 드라마, 02 예능, 03 시사교양, 09 해외시리즈, 08 애니메이션, 06 키즈, 05 스포츠
+            if type == 'dra':
+                params['genre'] = '01'
+            elif type == 'ent':
+                params['genre'] = '02'
+            elif type == 'doc':
+                params['genre'] = '03'
+            else:
+                params['genre'] = 'all' # 01 드라마, 02 예능, 03 시사교양, 09 해외시리즈, 08 애니메이션, 06 키즈, 05 스포츠
+            params['subgenre'] = 'all'
+            params['channel'] = 'all'
+            params['type'] = 'general' # general, onair, all
+            params['offset'] = '0'
+            params['limit'] = '30'
+            url = '%s?%s' % (url, urllib.urlencode(params))
+            # logger.debug('get_search_list:%s', url)
+            request = urllib2.Request(url)
+            response = urllib2.urlopen(request)
+            data = json.load(response, encoding='utf8')
+            
+            if len(data['list']) > 0:
+                return {'ret': True,
+                        'type': type,
+                        'data': data}
+            else:
+                return {'ret': False,
+                        'type': type,
+                        'data': data}
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
+    @staticmethod
+    def wavve_get_popular_cf(type='all'):
+        try:
+            url = 'https://apis.pooq.co.kr/cf/vod/popularcontents'
+            params = Logic.WAVVE_DEFAULT_PARAM.copy()
+            params['genre'] = '01' # 01 드라마, 02 예능, 03 시사교양, 09 해외시리즈, 08 애니메이션, 06 키즈, 05 스포츠
+            if type == 'dra':
+                params['genre'] = '01'
+                params['broadcastid'] = '6574'
+            elif type == 'ent':
+                params['genre'] = '02'
+                params['broadcastid'] = '6340'
+            elif type == 'doc':
+                params['genre'] = '03'
+                params['broadcastid'] = '6946'
+            else:
+                params['genre'] = 'all' # 01 드라마, 02 예능, 03 시사교양, 09 해외시리즈, 08 애니메이션, 06 키즈, 05 스포츠
+                params['broadcastid'] = '6574' # unknown
+            params['WeekDay'] = 'all'
+            params['came'] = 'broadcast'
+            params['subgenre'] = 'all'
+            params['channel'] = 'all'
+            params['contenttype'] = 'vod'
+            params['offset'] = '0'
+            params['limit'] = '30'
+            params['orderby'] = 'viewtime'
+            url = '%s?%s' % (url, urllib.urlencode(params))
+            # logger.debug('get_search_list:%s', url)
+            request = urllib2.Request(url)
+            response = urllib2.urlopen(request)
+            data = json.load(response, encoding='utf8')
+            
+            if len(data['cell_toplist']['celllist']) > 0:
+                return {'ret': True,
+                        'type': type,
+                        'data': data}
+            else:
+                return {'ret': False,
+                        'type': type,
+                        'data': data}
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
+    @staticmethod
+    def tving_get_popular(type='all'):
+        try:
+            url = 'https://api.tving.com/v2/media/episodes?'
+            url += 'pageNo=1&pageSize=30&order=viewDay&adult=all&free=all&guest=all&scope=all&lastFrequency=y&personal=N&screenCode=CSSD0100&networkCode=CSND0900&osCode=CSOD0900&teleCode=CSCD0900&apiKey=1e7952d0917d6aab1f0293a063697610'
+            params = {}
+            if type == 'dra':
+                param = '&multiCategoryCode=PCA'
+            elif type == 'ent':
+                param = '&multiCategoryCode=PCD'
+            elif type == 'doc':
+                param = '&multiCategoryCode=PCK'
+            else:
+                param = ''
+            url = '%s%s%s' % (url, urllib.urlencode(params), param)
+            # logger.debug('get_4k_list:%s', url)
+            request = urllib2.Request(url)
+            response = urllib2.urlopen(request)
+            data = json.load(response, encoding='utf8')
+
+            if len(data['body']['result']) > 0:
+                return {'ret': True,
+                        'type': type,
+                        'data': data}
+            else:
+                return {'ret': False,
+                        'type': type,
+                        'data': data}
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
+    @staticmethod
     def tving_get_SMTV_PROG_4K_list(type='program'):
         try:
             url = 'http://api.tving.com/v2/operator/highlights?'
@@ -211,10 +324,9 @@ class Logic(object):
             logger.debug('get_daum_ratings %s', keyword)
             url = 'https://search.daum.net/search?w=tot&q=%s' % urllib.quote(keyword.encode('utf8'))
 
-            request = urllib2.Request(url)
-            request.add_header('user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.92 Safari/537.36')
-            response = urllib2.urlopen(request)
-            html = response.read()
+            from framework.common.daum import headers, cookies
+            res = requests.get(url, headers=headers, cookies=cookies)
+            html = res.content
             root = lxml.html.fromstring(html)
             list_program = root.xpath('//ol[@class="list_program item_cont"]/li')
 
