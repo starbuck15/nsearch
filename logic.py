@@ -324,8 +324,9 @@ class Logic(object):
             logger.debug('get_daum_ratings %s', keyword)
             url = 'https://search.daum.net/search?w=tot&q=%s' % urllib.quote(keyword.encode('utf8'))
 
-            from framework.common.daum import headers, cookies
-            res = requests.get(url, headers=headers, cookies=cookies)
+            from framework.common.daum import headers, session
+            from system.logic_site import SystemLogicSite
+            res = session.get(url, headers=headers, cookies=SystemLogicSite.get_daum_cookies())
             html = res.content
             root = lxml.html.fromstring(html)
             list_program = root.xpath('//ol[@class="list_program item_cont"]/li')
