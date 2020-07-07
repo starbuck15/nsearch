@@ -33,7 +33,7 @@ def plugin_unload():
     Logic.plugin_unload()
 
 plugin_info = {
-    'version' : '0.0.5.2',
+    'version' : '0.0.5.3',
     'name' : 'nSearch',
     'category_name' : 'vod',
     'icon' : '',
@@ -191,7 +191,7 @@ def ajax(sub):
     elif sub == 'wavve_popular':
         try:
             type = request.form['type']
-            ret = Logic.wavve_get_popular(type)
+            ret = Logic.wavve_get_popular_cf(type)
             return jsonify(ret)
         except Exception as e:
             logger.error('Exception:%s', e)

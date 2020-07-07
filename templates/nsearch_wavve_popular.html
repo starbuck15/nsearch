@@ -44,9 +44,9 @@ $(document).ready(function(){
     dataType: "json",
     success: function (data) {
       if (list_method == 'album') {
-        wavve_make_album(data, "list");
+        wavve_make_album_cf(data, "list");
       } else {
-        wavve_make_album(data, "list");
+        wavve_make_album_cf(data, "list");
       }
     }
   });
@@ -58,9 +58,9 @@ $(document).ready(function(){
     dataType: "json",
     success: function (data) {
       if (list_method == 'album') {
-        wavve_make_album(data, "list2");
+        wavve_make_album_cf(data, "list2");
       } else {
-        wavve_make_album(data, "list2");
+        wavve_make_album_cf(data, "list2");
       }
     }
   });
@@ -72,9 +72,9 @@ $(document).ready(function(){
     dataType: "json",
     success: function (data) {
       if (list_method == 'album') {
-        wavve_make_album(data, "list3");
+        wavve_make_album_cf(data, "list3");
       } else {
-        wavve_make_album(data, "list3");
+        wavve_make_album_cf(data, "list3");
       }
     }
   });
@@ -86,9 +86,9 @@ $(document).ready(function(){
     dataType: "json",
     success: function (data) {
       if (list_method == 'album') {
-        wavve_make_album(data, "list4");
+        wavve_make_album_cf(data, "list4");
       } else {
-        wavve_make_album(data, "list4");
+        wavve_make_album_cf(data, "list4");
       }
     }
   });
@@ -109,7 +109,6 @@ $(document).ready(function(){
 
 function wavve_make_album(ret, target){
   data = ret.data.list;
-  // str = '총 ' + data.length + '편';
   str = '';
   str += '<hr>';
   str += '<div class="row">';
@@ -143,38 +142,40 @@ function wavve_make_album(ret, target){
   document.getElementById(target).innerHTML = str;
 }
 
-// function wavve_make_album_cf(ret, target){
-//   data = ret.data.cell_toplist.celllist;
-//   str = '총 ' + data.length + '편';
-//   str += '<hr>';
-//   str += '<div class="row">';
-//   for (var i = 0; i < Object.keys(data).length; i++) {
-//     image_url = data[i].thumbnail;
+function wavve_make_album_cf(ret, target){
+  data = ret.data.cell_toplist.celllist;
+  str = '';
+  str += '<hr>';
+  str += '<div class="row">';
+  for (var i = 0; i < Object.keys(data).length; i++) {
+    image_url = data[i].thumbnail.replace('.jpg','_w720_h1038_q75.jpg');
+    episode_code = data[i].event_list[0].bodylist[3].replace('uicode:','');
+    program_name = data[i].title_list[0].text
 
-//     str += '<div class="col-md-2">';
-//     str += '<div class="card mb-2 box-shadow">';
-//     str += '<img class="card-img-top" src="' + 'http://' + image_url + '" class="img-fluid img-thumbnail">';
-//     str += '<div class="card-body">';
-//     str += '<p class="card-text">';
-//     str += '<strong>' + data[i].title_list[0].text + '</strong>';
-//     str += '<small class="text-muted">';
-//     str += '<br>' + data[i].event_list[0].bodylist[0].uicode;
-//     str += '</small>';
-//     str += '</p>';
-//     str += '<div class="d-flex justify-content-between align-items-center">';
-//     str += '<div class="btn-group">';
-//     str += '<button id="wavve_program_basic_analyze" name="submit" type="button" class="btn btn-sm btn-outline-secondary" data-code="'+data[i].event_list[0].bodylist[0].uicode+'">분석</button>';
-//     str += '<button id="wavve_whitelist_program_btn" name="submit" type="button" class="btn btn-sm btn-outline-secondary" data-program="'+data[i].title_list[0].text+'">추가</button>';
-//     str += '</div>';
-//     str += '</div>';
-//     str += '</div>';
-//     str += '</div>';
-//     str += '</div>';
-//   }
-//   str += '</div>';
+    str += '<div class="col-md-2">';
+    str += '<div class="card mb-2 box-shadow">';
+    str += '<img class="card-img-top" src="' + 'http://' + image_url + '" class="img-fluid img-thumbnail">';
+    str += '<div class="card-body">';
+    str += '<p class="card-text">';
+    str += '<strong>' + program_name + '</strong>';
+    str += '<small class="text-muted">';
+    str += '<br>' + episode_code;
+    str += '</small>';
+    str += '</p>';
+    str += '<div class="d-flex justify-content-between align-items-center">';
+    str += '<div class="btn-group">';
+    str += '<button id="wavve_program_basic_analyze" name="submit" type="button" class="btn btn-sm btn-outline-secondary" data-code="'+episode_code+'">분석</button>';
+    str += '<button id="wavve_whitelist_program_btn" name="submit" type="button" class="btn btn-sm btn-outline-secondary" data-program="'+program_name+'">추가</button>';
+    str += '</div>';
+    str += '</div>';
+    str += '</div>';
+    str += '</div>';
+    str += '</div>';
+  }
+  str += '</div>';
 
-//   document.getElementById(target).innerHTML = str;
-// }
+  document.getElementById(target).innerHTML = str;
+}
 
 function add_condition_list(plugin, mode, value) {
   $.ajax({

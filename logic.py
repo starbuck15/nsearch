@@ -178,7 +178,9 @@ class Logic(object):
     def wavve_get_popular(type='all'):
         try:
             url = 'https://apis.pooq.co.kr/vod/popularcontents'
+            # url = 'https://apis.pooq.co.kr/vod/popularprograms'
             params = Logic.WAVVE_DEFAULT_PARAM.copy()
+            # params['onair'] = 'y' # all 전체, y 방영중, n 종영
             params['genre'] = '01' # 01 드라마, 02 예능, 03 시사교양, 09 해외시리즈, 08 애니메이션, 06 키즈, 05 스포츠
             if type == 'dra':
                 params['genre'] = '01'
@@ -190,7 +192,7 @@ class Logic(object):
                 params['genre'] = 'all' # 01 드라마, 02 예능, 03 시사교양, 09 해외시리즈, 08 애니메이션, 06 키즈, 05 스포츠
             params['subgenre'] = 'all'
             params['channel'] = 'all'
-            params['type'] = 'general' # general, onair, all
+            params['type'] = 'all' # general, onair, all
             params['offset'] = '0'
             params['limit'] = '30'
             url = '%s?%s' % (url, urllib.urlencode(params))
@@ -214,21 +216,28 @@ class Logic(object):
     @staticmethod
     def wavve_get_popular_cf(type='all'):
         try:
+            # url = 'https://apis.wavve.com/cf/supermultisections/GN2'
+            # params = Logic.WAVVE_DEFAULT_PARAM.copy()
+            # url = '%s?%s' % (url, urllib.urlencode(params))
+            # request = urllib2.Request(url)
+            # response = urllib2.urlopen(request)
+            # data = json.load(response, encoding='utf8')
+            
             url = 'https://apis.pooq.co.kr/cf/vod/popularcontents'
             params = Logic.WAVVE_DEFAULT_PARAM.copy()
             params['genre'] = '01' # 01 드라마, 02 예능, 03 시사교양, 09 해외시리즈, 08 애니메이션, 06 키즈, 05 스포츠
             if type == 'dra':
                 params['genre'] = '01'
-                params['broadcastid'] = '6574'
+                params['broadcastid'] = 'FN0_VN327_pc'
             elif type == 'ent':
                 params['genre'] = '02'
-                params['broadcastid'] = '6340'
+                params['broadcastid'] = 'FN0_VN326_pc'
             elif type == 'doc':
                 params['genre'] = '03'
-                params['broadcastid'] = '6946'
+                params['broadcastid'] = 'FN0_VN328_pc'
             else:
                 params['genre'] = 'all' # 01 드라마, 02 예능, 03 시사교양, 09 해외시리즈, 08 애니메이션, 06 키즈, 05 스포츠
-                params['broadcastid'] = '6574' # unknown
+                params['broadcastid'] = 'FN0_VN327_pc' # unknown
             params['WeekDay'] = 'all'
             params['came'] = 'broadcast'
             params['subgenre'] = 'all'
@@ -260,6 +269,7 @@ class Logic(object):
         try:
             url = 'https://api.tving.com/v2/media/episodes?'
             url += 'pageNo=1&pageSize=30&order=viewDay&adult=all&free=all&guest=all&scope=all&lastFrequency=y&personal=N&screenCode=CSSD0100&networkCode=CSND0900&osCode=CSOD0900&teleCode=CSCD0900&apiKey=1e7952d0917d6aab1f0293a063697610'
+            # url += 'pageNo=1&pageSize=30&order=viewWeek&adult=all&free=all&guest=all&scope=all&lastFrequency=y&personal=N&screenCode=CSSD0100&networkCode=CSND0900&osCode=CSOD0900&teleCode=CSCD0900&apiKey=1e7952d0917d6aab1f0293a063697610'
             params = {}
             if type == 'dra':
                 param = '&multiCategoryCode=PCA'
