@@ -113,11 +113,11 @@ function wavve_make_album(ret, target){
   str += '<hr>';
   str += '<div class="row">';
   for (var i = 0; i < Object.keys(data).length; i++) {
-    image_url = data[i].image;
+    image_url = data[i].image.replace('.jpg','_w720_h1038_q75.jpg');
 
     str += '<div class="col-md-2 col-sm-4 col-6">';
     str += '<div class="card mb-2 sm-4 box-shadow">';
-    str += '<img class="card-img-top" src="' + 'http://' + image_url.replace('.jpg','_w720_h1038_q75.jpg') + '" class="img-fluid img-thumbnail">';
+    str += '<img class="card-img-top" src="' + 'http://' + image_url + '" class="img-fluid img-thumbnail">';
     str += '<div class="card-body">';
     str += '<p class="card-text">';
     str += '<strong>' + data[i].programtitle + '</strong>';
@@ -152,8 +152,8 @@ function wavve_make_album_cf(ret, target){
     episode_code = data[i].event_list[0].bodylist[3].replace('uicode:','');
     program_name = data[i].title_list[0].text
 
-    str += '<div class="col-md-2">';
-    str += '<div class="card mb-2 box-shadow">';
+    str += '<div class="col-md-2 col-sm-4 col-6">';
+    str += '<div class="card mb-2 sm-4 box-shadow">';
     str += '<img class="card-img-top" src="' + 'http://' + image_url + '" class="img-fluid img-thumbnail">';
     str += '<div class="card-body">';
     str += '<p class="card-text">';
