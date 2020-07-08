@@ -4,36 +4,45 @@
 #########################################################
 # python
 import os
-import sys
 import traceback
 
 # third-party
-from flask import Blueprint, request, Response, render_template, redirect, jsonify
-from flask_login import login_required
+from flask import Blueprint, request, Response, send_file, render_template, redirect, jsonify, session, send_from_directory 
+from flask_socketio import SocketIO, emit, send
+from flask_login import login_user, logout_user, current_user, login_required
 
 # sjva 공용
 from framework.logger import get_logger
-from framework import app, db, scheduler
+from framework import app, db, scheduler, path_data, socketio
 from framework.util import Util
 from system.logic import SystemLogic
-            
-# 패키지
-from .logic import Logic
-from .model import ModelSetting
 
+# 패키지
 package_name = __name__.split('.')[0]
 logger = get_logger(package_name)
 
+from .model import ModelSetting
+from .logic import Logic
+from .logic_normal import LogicNormal
+
+#########################################################
+
+
+#########################################################
+# 플러그인 공용                                       
+#########################################################
 blueprint = Blueprint(package_name, package_name, url_prefix='/%s' %  package_name, template_folder=os.path.join(os.path.dirname(__file__), 'templates'))
 
-def plugin_load():
-    Logic.plugin_load()
-
-def plugin_unload():
-    Logic.plugin_unload()
+menu = {
+    'main' : [package_name, '검색'],
+    'sub' : [
+        ['search', '검색'], ['whitelist', '화이트리스트'], ['wavve_popular', '웨이브 인기'], ['tving_popular', '티빙 인기'], ['tving4k', '티빙 UHD 4K'], ['ratings', '시청률 순위'], ['log', '로그']
+    ],
+    'category' : 'vod',
+}
 
 plugin_info = {
-    'version' : '0.0.5.3',
+    'version' : '0.0.6',
     'name' : 'nSearch',
     'category_name' : 'vod',
     'icon' : '',
@@ -43,16 +52,13 @@ plugin_info = {
     'more' : 'https://github.com/starbuck15/nsearch',
     'zip' : 'https://github.com/starbuck15/nsearch/archive/master.zip'
 }
-#########################################################
 
-# 메뉴 구성.
-menu = {
-    'main' : [package_name, '검색'],
-    'sub' : [
-        ['search', '검색'], ['whitelist', '화이트리스트'], ['ratings', '시청률 순위'], ['wavve_popular', '웨이브 인기'], ['tving_popular', '티빙 인기'], ['tving4k', '티빙 UHD 4K'], ['log', '로그']
-    ],
-    'category' : 'vod',
-}
+def plugin_load():
+    Logic.plugin_load()
+
+def plugin_unload():
+    Logic.plugin_unload()
+
 
 #########################################################
 # WEB Menu
@@ -79,18 +85,12 @@ def detail(sub):
 
     if sub == 'whitelist':
         try:
-            wavve_programs = Logic.wavve_programs()
-            tving_programs = Logic.tving_programs()
-            return render_template('%s_whitelist.html' % (package_name), wavve_programs = wavve_programs, tving_programs = tving_programs) 
-        except Exception as e:
-            logger.error('Exception:%s', e)
-            logger.error(traceback.format_exc())
-
-    if sub == 'ratings':
-        try:
-            setting_list = db.session.query(ModelSetting).all()
-            arg = Util.db_list_to_dict(setting_list)
-            return render_template('%s_ratings.html' % (package_name), arg=arg)
+            arg = ModelSetting.to_dict()
+            arg['scheduler'] = str(scheduler.is_include(package_name))
+            arg['is_running'] = str(scheduler.is_running(package_name))
+            wavve_programs = LogicNormal.wavve_programs()
+            tving_programs = LogicNormal.tving_programs()
+            return render_template('%s_whitelist.html' % (package_name), arg=arg, wavve_programs = wavve_programs, tving_programs = tving_programs) 
         except Exception as e:
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
@@ -122,6 +122,15 @@ def detail(sub):
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
 
+    if sub == 'ratings':
+        try:
+            setting_list = db.session.query(ModelSetting).all()
+            arg = Util.db_list_to_dict(setting_list)
+            return render_template('%s_ratings.html' % (package_name), arg=arg)
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
     elif sub == 'log':
         return render_template('log.html', package=package_name)
     return render_template('sample.html', title='%s - %s' % (package_name, sub))
@@ -132,88 +141,108 @@ def detail(sub):
 @blueprint.route('/ajax/<sub>', methods=['GET', 'POST'])
 def ajax(sub):
     logger.debug('AJAX %s %s', package_name, sub)
-    if sub == 'setting_save':
-        try:
-            ret = Logic.setting_save(request)
-            return jsonify(ret)
-        except Exception as e: 
-            logger.error('Exception:%s', e)
-            logger.error(traceback.format_exc())
+    try:
+        if sub == 'setting_save':
+            try:
+                ret = ModelSetting.setting_save(request)
+                return jsonify(ret)
+            except Exception as e: 
+                logger.error('Exception:%s', e)
+                logger.error(traceback.format_exc())
+                return jsonify('fail')
+        elif sub == 'scheduler':
+            try:
+                go = request.form['scheduler']
+                logger.debug('scheduler :%s', go)
+                if go == 'true':
+                    Logic.scheduler_start()
+                else:
+                    Logic.scheduler_stop()
+                return jsonify(go)
+            except Exception as e: 
+                logger.error('Exception:%s', e)
+                logger.error(traceback.format_exc())
+                return jsonify('fail')
 
-    elif sub == 'wavve_search':
-        try:
-            keyword = request.form['keyword']
-            type = request.form['type']
-            page = request.form['page']
-            ret = Logic.wavve_search_keyword(keyword, type, page)
-            return jsonify(ret)
-        except Exception as e:
-            logger.error('Exception:%s', e)
-            logger.error(traceback.format_exc())
+        elif sub == 'wavve_search':
+            try:
+                keyword = request.form['keyword']
+                type = request.form['type']
+                page = request.form['page']
+                ret = LogicNormal.wavve_search_keyword(keyword, type, page)
+                return jsonify(ret)
+            except Exception as e:
+                logger.error('Exception:%s', e)
+                logger.error(traceback.format_exc())
 
-    elif sub == 'tving_search':
-        try:
-            keyword = request.form['keyword']
-            type = request.form['type']
-            page = request.form['page']
-            ret = Logic.tving_search_keyword(keyword, type, page)
-            return jsonify(ret)
-        except Exception as e:
-            logger.error('Exception:%s', e)
-            logger.error(traceback.format_exc())
+        elif sub == 'tving_search':
+            try:
+                keyword = request.form['keyword']
+                type = request.form['type']
+                page = request.form['page']
+                ret = LogicNormal.tving_search_keyword(keyword, type, page)
+                return jsonify(ret)
+            except Exception as e:
+                logger.error('Exception:%s', e)
+                logger.error(traceback.format_exc())
 
-    elif sub == 'wavve_whitelist_save':
-        try:
-            ret = Logic.wavve_whitelist_save(request)
-            return jsonify(ret)
-        except Exception as e: 
-            logger.error('Exception:%s', e)
-            logger.error(traceback.format_exc())
+        elif sub == 'wavve_whitelist_save':
+            try:
+                ret = LogicNormal.wavve_whitelist_save(request)
+                return jsonify(ret)
+            except Exception as e: 
+                logger.error('Exception:%s', e)
+                logger.error(traceback.format_exc())
 
-    elif sub == 'tving_whitelist_save':
-        try:
-            ret = Logic.tving_whitelist_save(request)
-            return jsonify(ret)
-        except Exception as e: 
-            logger.error('Exception:%s', e)
-            logger.error(traceback.format_exc())
+        elif sub == 'tving_whitelist_save':
+            try:
+                ret = LogicNormal.tving_whitelist_save(request)
+                return jsonify(ret)
+            except Exception as e: 
+                logger.error('Exception:%s', e)
+                logger.error(traceback.format_exc())
 
-    elif sub == 'ratings':
-        try:
-            keyword = request.form['keyword']
-            ret = Logic.daum_get_ratings(keyword)
-            return jsonify(ret)
-        except Exception as e:
-            logger.error('Exception:%s', e)
-            logger.error(traceback.format_exc())
-            return jsonify('fail')
+        elif sub == 'wavve_popular':
+            try:
+                type = request.form['type']
+                # ret = LogicNormal.wavve_get_popular_list(type) # Unwanted thumbnail
+                ret = LogicNormal.wavve_get_cfpopular_list(type)
+                return jsonify(ret)
+            except Exception as e:
+                logger.error('Exception:%s', e)
+                logger.error(traceback.format_exc())
 
-    elif sub == 'wavve_popular':
-        try:
-            type = request.form['type']
-            ret = Logic.wavve_get_popular_cf(type)
-            return jsonify(ret)
-        except Exception as e:
-            logger.error('Exception:%s', e)
-            logger.error(traceback.format_exc())
+        elif sub == 'tving_popular':
+            try:
+                type = request.form['type']
+                ret = LogicNormal.tving_get_popular_list(type)
+                return jsonify(ret)
+            except Exception as e:
+                logger.error('Exception:%s', e)
+                logger.error(traceback.format_exc())
 
-    elif sub == 'tving_popular':
-        try:
-            type = request.form['type']
-            ret = Logic.tving_get_popular(type)
-            return jsonify(ret)
-        except Exception as e:
-            logger.error('Exception:%s', e)
-            logger.error(traceback.format_exc())
+        elif sub == 'tving4k':
+            try:
+                type = request.form['type']
+                ret = LogicNormal.tving_get_SMTV_PROG_4K_list(type)
+                return jsonify(ret)
+            except Exception as e:
+                logger.error('Exception:%s', e)
+                logger.error(traceback.format_exc())
 
-    elif sub == 'tving4k':
-        try:
-            type = request.form['type']
-            ret = Logic.tving_get_SMTV_PROG_4K_list(type)
-            return jsonify(ret)
-        except Exception as e:
-            logger.error('Exception:%s', e)
-            logger.error(traceback.format_exc())
+        elif sub == 'ratings':
+            try:
+                keyword = request.form['keyword']
+                ret = LogicNormal.daum_get_ratings_list(keyword)
+                return jsonify(ret)
+            except Exception as e:
+                logger.error('Exception:%s', e)
+                logger.error(traceback.format_exc())
+                return jsonify('fail')
+
+    except Exception as e: 
+        logger.error('Exception:%s', e)
+        logger.error(traceback.format_exc())
 
 #########################################################
 # API

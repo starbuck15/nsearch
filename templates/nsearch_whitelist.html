@@ -56,12 +56,25 @@ input.search-input{
 <div class="mt-3 mb-3">
   <nav> 
     {{ macros.m_tab_head_start() }}
-      {{ macros.m_tab_head('웨이브', true) }}
+    {{ macros.m_tab_head('설정', false) }}
+    {{ macros.m_tab_head('웨이브', true) }}
 	  {{ macros.m_tab_head('티빙', false) }}
     {{ macros.m_tab_head_end() }}
   </nav>  
 
   <div class="tab-content" id="nav-tabContent">
+    {{ macros.m_tab_content_start('설정', false) }}
+    {{ macros.setting_global_scheduler_button(arg['scheduler'], arg['is_running']) }}
+    <form id='setting' name='setting'>
+    {{ macros.setting_input_text('auto_interval', '스케쥴링 실행 정보', value=arg['auto_interval'], col='3', desc=['Inverval(minute 단위)이나 Cron 설정']) }}
+    {{ macros.setting_checkbox('auto_start', '시작시 자동실행', value=arg['auto_start'], desc='On : 시작시 자동으로 스케쥴러에 등록됩니다.') }}
+    {{ macros.setting_checkbox('auto_wavve_whitelist_active', '웨이브 활성화', value=arg['auto_wavve_whitelist_active'], desc='On : 웨이브 인기 프로그램을 자동으로 화이트리스트에 등록합니다.') }}
+    {{ macros.setting_input_int('auto_wavve_whitelist_limit', '프로그램수', value=arg['auto_wavve_whitelist_limit'], min='1', placeholder='10') }}
+    {{ macros.setting_checkbox('auto_tving_whitelist_active', '티빙 활성화', value=arg['auto_tving_whitelist_active'], desc='On : 티빙 인기 프로그램을 자동으로 화이트리스트에 등록합니다.') }}
+    {{ macros.setting_input_int('auto_tving_whitelist_limit', '프로그램수', value=arg['auto_tving_whitelist_limit'], min='1', placeholder='10') }}
+    {{ macros.setting_button([['global_setting_save_btn', '저장']]) }}
+    </form>
+    {{ macros.m_tab_content_end() }}
     {{ macros.m_tab_content_start('웨이브', true) }}
     <div class="container">
 	  <center>
@@ -77,7 +90,7 @@ input.search-input{
         </form>
       </center>
     </div>
-	{{ macros.m_tab_content_end() }}
+	  {{ macros.m_tab_content_end() }}
     {{ macros.m_tab_content_start('티빙', false) }}
     <div class="container">
 	  <center>
