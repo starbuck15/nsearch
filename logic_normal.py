@@ -52,6 +52,7 @@ class LogicNormal(object):
             auto_wavve_whitelist_limit = ModelSetting.get_int('auto_wavve_whitelist_limit')
             auto_tving_whitelist_active = ModelSetting.get_bool('auto_tving_whitelist_active')
             auto_tving_whitelist_limit = ModelSetting.get_int('auto_tving_whitelist_limit')
+            auto_tving_order = ModelSetting.get('auto_tving_order')
             auto_priority = ModelSetting.get_int('auto_priority')
             auto_delete = ModelSetting.get_bool('auto_delete')
             
@@ -67,7 +68,7 @@ class LogicNormal(object):
             elif auto_wavve_whitelist_active:
                 auto_wavve_whitelist = LogicNormal.wavve_get_cfpopular_list(auto_wavve_whitelist_limit)
             elif auto_tving_whitelist_active:
-                auto_tving_whitelist = LogicNormal.tving_get_popular_list(auto_tving_whitelist_limit)
+                auto_tving_whitelist = LogicNormal.tving_get_popular_list(auto_tving_whitelist_limit, auto_tving_order)
 
             if auto_wavve_whitelist_active:
                 cur_wavve_whitelist = LogicNormal.wavve_get_whitelist()
@@ -208,8 +209,10 @@ class LogicNormal(object):
             logger.error(traceback.format_exc())
 
     @staticmethod
-    def tving_get_popular_json(type='all'):
+    def tving_get_popular_json(type='all', order='viewDay'):
         try:
+            auto_tving_order = ModelSetting.get('auto_tving_order')
+            
             param = {}
             if type == 'dra':
                 param['multiCategoryCode'] = 'PCA'
@@ -219,8 +222,9 @@ class LogicNormal(object):
                 param['multiCategoryCode'] = 'PCK'
             else:
                 param['multiCategoryCode'] = ''
-            default_param = 'pageNo=1&pageSize=30&order=viewDay&adult=all&free=all&guest=all&scope=all&lastFrequency=y&personal=N&screenCode=CSSD0100&networkCode=CSND0900&osCode=CSOD0900&teleCode=CSCD0900&apiKey=1e7952d0917d6aab1f0293a063697610'
             # order : viewDay, viewWeek
+            param['order'] = auto_tving_order
+            default_param = 'pageNo=1&pageSize=30&adult=all&free=all&guest=all&scope=all&lastFrequency=y&personal=N&screenCode=CSSD0100&networkCode=CSND0900&osCode=CSOD0900&teleCode=CSCD0900&apiKey=1e7952d0917d6aab1f0293a063697610'
             url = '%s/v2/media/episodes?%s&%s' % (LogicNormal.tving_config['base_url'], default_param, urllib.urlencode(param))
             res = requests.get(url)
             data = res.json()

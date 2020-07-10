@@ -73,6 +73,7 @@ input.search-input{
     {{ macros.setting_input_int('auto_wavve_whitelist_limit', '웨이브 프로그램수', value=arg['auto_wavve_whitelist_limit'], min='1', placeholder='10', desc='최대값 = 30') }}
     {{ macros.setting_checkbox('auto_tving_whitelist_active', '티빙 활성화', value=arg['auto_tving_whitelist_active'], desc='On : 티빙 인기 프로그램을 자동으로 화이트리스트에 등록합니다.') }}
     {{ macros.setting_input_int('auto_tving_whitelist_limit', '티빙 프로그램수', value=arg['auto_tving_whitelist_limit'], min='1', placeholder='10', desc='최대값 = 30') }}
+    {{ macros.setting_select('auto_tving_order', '티빙 정렬기준', [['viewDay', '일간'], ['viewWeek', '주간']], col='3', value=arg['auto_tving_order']) }}
     {{ macros.setting_radio('auto_priority', '우선 순위', ['웨이브+티빙', '웨이브', '티빙'], value=arg['auto_priority'], desc='웨이브와 티빙 모두 활성화 되어있을 경우만 유효합니다.') }}
     {{ macros.setting_checkbox('auto_delete', '삭제 활성화', value=arg['auto_delete'], desc='On : 최근 30일 이내의 DB에 존재하지 않는 프로그램을 자동으로 화이트리스트에서 삭제합니다.') }}
     {{ macros.setting_button([['global_setting_save_btn', '저장']]) }}
