@@ -95,7 +95,7 @@ class LogicNormal(object):
                     added_whitelist_program = ', '.join(added_whitelist_programs)
                     logger.info('added_tving_programs:%s', added_whitelist_program)
                     
-                    whitelist_program = ModelTvingSetting.set('whitelist_program',added_whitelist_program)
+                    whitelist_program = ModelTvingSetting.set('whitelist_program',new_whitelist_program)
 
             logger.debug('=======================================')
         except Exception as e: 
