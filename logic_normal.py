@@ -68,7 +68,7 @@ class LogicNormal(object):
             elif auto_wavve_whitelist_active:
                 auto_wavve_whitelist = LogicNormal.wavve_get_cfpopular_list(auto_wavve_whitelist_limit)
             elif auto_tving_whitelist_active:
-                auto_tving_whitelist = LogicNormal.tving_get_popular_list(auto_tving_whitelist_limit, auto_tving_order)
+                auto_tving_whitelist = LogicNormal.tving_get_popular_list(auto_tving_whitelist_limit)
 
             if auto_wavve_whitelist_active:
                 cur_wavve_whitelist = LogicNormal.wavve_get_whitelist()
