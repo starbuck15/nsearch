@@ -68,7 +68,11 @@ class LogicNormal(object):
                     new_whitelist_programs = whitelist_programs + auto_wavve_whitelist
                     new_whitelist_programs = list(set(new_whitelist_programs))
                     new_whitelist_program = ', '.join(new_whitelist_programs)
-                    logger.debug('wavve_channels:%s', new_whitelist_program)
+                    
+                    added_whitelist_programs = list(set(new_whitelist_programs) - set(whitelist_programs))
+                    added_whitelist_program = ', '.join(added_whitelist_programs)
+                    logger.info('added_wavve_programs:%s', added_whitelist_program)
+                    
                     whitelist_program = ModelWavveSetting.set('whitelist_program',new_whitelist_program)
 
             if auto_tving_whitelist_active:
@@ -86,8 +90,12 @@ class LogicNormal(object):
                     new_whitelist_programs = whitelist_programs + auto_tving_whitelist
                     new_whitelist_programs = list(set(new_whitelist_programs))
                     new_whitelist_program = ', '.join(new_whitelist_programs)
-                    logger.debug('tving_channels:%s', new_whitelist_program)
-                    whitelist_program = ModelTvingSetting.set('whitelist_program',new_whitelist_program)
+                    
+                    added_whitelist_programs = list(set(new_whitelist_programs) - set(whitelist_programs))
+                    added_whitelist_program = ', '.join(added_whitelist_programs)
+                    logger.info('added_tving_programs:%s', added_whitelist_program)
+                    
+                    whitelist_program = ModelTvingSetting.set('whitelist_program',added_whitelist_program)
 
             logger.debug('=======================================')
         except Exception as e: 
