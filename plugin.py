@@ -42,7 +42,7 @@ menu = {
 }
 
 plugin_info = {
-    'version' : '0.0.6.5',
+    'version' : '0.0.6.8',
     'name' : 'nSearch',
     'category_name' : 'vod',
     'icon' : '',

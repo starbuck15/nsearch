@@ -33,7 +33,8 @@ class Logic(object):
         'auto_wavve_whitelist_limit' : '20',
         'auto_tving_whitelist_active' : 'False',
         'auto_tving_whitelist_limit' : '20',
-        'auto_priority' : '0'
+        'auto_priority' : '0',
+        'auto_delete' : 'False'
     }
 
     @staticmethod
@@ -100,7 +101,7 @@ class Logic(object):
             else:
 
                 def func():
-                    time.sleep(2)
+                    # time.sleep(2)
                     Logic.scheduler_function()
 
                 threading.Thread(target=func, args=()).start()

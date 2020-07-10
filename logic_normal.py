@@ -53,6 +53,7 @@ class LogicNormal(object):
             auto_tving_whitelist_active = ModelSetting.get_bool('auto_tving_whitelist_active')
             auto_tving_whitelist_limit = ModelSetting.get_int('auto_tving_whitelist_limit')
             auto_priority = ModelSetting.get_int('auto_priority')
+            auto_delete = ModelSetting.get_bool('auto_delete')
             
             if auto_wavve_whitelist_active and auto_tving_whitelist_active:
                 auto_wavve_whitelist = LogicNormal.wavve_get_cfpopular_list(auto_wavve_whitelist_limit)
@@ -71,6 +72,8 @@ class LogicNormal(object):
             if auto_wavve_whitelist_active:
                 cur_wavve_whitelist = LogicNormal.wavve_get_whitelist()
                 new_wavve_whitelist = list(set(cur_wavve_whitelist + auto_wavve_whitelist))
+                if auto_delete:
+                    new_wavve_whitelist = LogicNormal.wavve_purge_whitelist(new_wavve_whitelist)
                 ret = LogicNormal.wavve_set_whitelist(new_wavve_whitelist)
                 if ret:
                     added_whitelist = list(set(new_wavve_whitelist) - set(cur_wavve_whitelist))
@@ -81,6 +84,8 @@ class LogicNormal(object):
             if auto_tving_whitelist_active:
                 cur_tving_whitelist = LogicNormal.tving_get_whitelist()
                 new_tving_whitelist = list(set(cur_tving_whitelist + auto_tving_whitelist))
+                if auto_delete:
+                    new_tving_whitelist = LogicNormal.tving_purge_whitelist(new_tving_whitelist)
                 ret = LogicNormal.tving_set_whitelist(new_tving_whitelist)
                 if ret:
                     added_whitelist = list(set(new_tving_whitelist) - set(cur_tving_whitelist))
@@ -472,6 +477,64 @@ class LogicNormal(object):
         except Exception as e:
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
+
+    @staticmethod
+    def wavve_purge_whitelist(whitelist_programs):
+        try:
+            import datetime
+            from wavve.model import ModelWavveEpisode as ModelWavveEpisode
+            month_ago = (datetime.date.today() - datetime.timedelta(days=30)).strftime('%Y-%m-%d')
+            query = db.session.query(ModelWavveEpisode.programtitle, ModelWavveEpisode.channelname)
+            query = query.filter((ModelWavveEpisode.call == 'auto') & (ModelWavveEpisode.releasedate > month_ago))
+            query = query.group_by(ModelWavveEpisode.programtitle)
+            tmp = query.all()
+            
+            data = [x.programtitle.strip() for x in tmp]
+            removed_whitelist_programs = []
+            for item in list(set(whitelist_programs)):
+                # if item not in data:
+                if not any(item in s for s in data):
+                    whitelist_programs.remove(item)
+                    removed_whitelist_programs.append(item)
+
+            if len(removed_whitelist_programs):
+                removed_whitelist_program = ', '.join(removed_whitelist_programs)
+                logger.info('removed_or_ignored_wavve_programs:%s', removed_whitelist_program)
+            
+            return whitelist_programs
+        except Exception as e: 
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+            return False
+
+    @staticmethod
+    def tving_purge_whitelist(whitelist_programs):
+        try:
+            import datetime
+            from tving.model import Episode as ModelTvingEpisode
+            month_ago = (datetime.date.today() - datetime.timedelta(days=30)).strftime('%y%m%d')
+            query = db.session.query(ModelTvingEpisode.program_name, ModelTvingEpisode.channel_name)
+            query = query.filter((ModelTvingEpisode.call == 'auto') & (ModelTvingEpisode.broadcast_date > month_ago))
+            query = query.group_by(ModelTvingEpisode.program_name)
+            tmp = query.all()
+            
+            data = [x.program_name.strip() for x in tmp]
+            removed_whitelist_programs = []
+            for item in list(set(whitelist_programs)):
+                # if item not in data:
+                if not any(item in s for s in data):
+                    whitelist_programs.remove(item)
+                    removed_whitelist_programs.append(item)
+
+            if len(removed_whitelist_programs):
+                removed_whitelist_program = ', '.join(removed_whitelist_programs)
+                logger.info('removed_or_ignored_tving_programs:%s', removed_whitelist_program)
+            
+            return whitelist_programs
+        except Exception as e: 
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+            return False
 
     @staticmethod
     def wavve_get_whitelist():
