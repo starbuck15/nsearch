@@ -57,6 +57,8 @@ class LogicNormal(object):
                 ret = LogicNormal.wavve_get_cfpopular_list()
                 if ret['ret']:
                     auto_wavve_whitelist = [x['title_list'][0]['text'].strip() for x in ret['data']['cell_toplist']['celllist']]
+                    if auto_wavve_whitelist_limit > len(auto_wavve_whitelist):
+                        auto_wavve_whitelist_limit = len(auto_wavve_whitelist)
                     auto_wavve_whitelist = auto_wavve_whitelist[:auto_wavve_whitelist_limit]
                     auto_wavve_whitelist = Util.get_list_except_empty(auto_wavve_whitelist)
 
@@ -73,12 +75,14 @@ class LogicNormal(object):
                     added_whitelist_program = ', '.join(added_whitelist_programs)
                     logger.info('added_wavve_programs:%s', added_whitelist_program)
                     
-                    whitelist_program = ModelWavveSetting.set('whitelist_program',new_whitelist_program)
+                    ModelWavveSetting.set('whitelist_program',new_whitelist_program)
 
             if auto_tving_whitelist_active:
                 ret = LogicNormal.tving_get_popular_list()
                 if ret['ret']:
                     auto_tving_whitelist = [x['program']['name']['ko'].strip() for x in ret['data']['body']['result']]
+                    if auto_tving_whitelist_limit > len(auto_tving_whitelist):
+                        auto_tving_whitelist_limit = len(auto_tving_whitelist)
                     auto_tving_whitelist = auto_tving_whitelist[:auto_tving_whitelist_limit]
                     auto_tving_whitelist = Util.get_list_except_empty(auto_tving_whitelist)
 
@@ -95,7 +99,7 @@ class LogicNormal(object):
                     added_whitelist_program = ', '.join(added_whitelist_programs)
                     logger.info('added_tving_programs:%s', added_whitelist_program)
                     
-                    whitelist_program = ModelTvingSetting.set('whitelist_program',new_whitelist_program)
+                    ModelTvingSetting.set('whitelist_program',new_whitelist_program)
 
             logger.debug('=======================================')
         except Exception as e: 
@@ -445,7 +449,7 @@ class LogicNormal(object):
             whitelist_programs = req.form.getlist('wavve_whitelist[]')
             whitelist_program = ', '.join(whitelist_programs)
             logger.debug(whitelist_program)
-            whitelist_program = ModelWavveSetting.set('whitelist_program',whitelist_program)
+            ModelWavveSetting.set('whitelist_program',whitelist_program)
             return True                  
         except Exception as e: 
             logger.error('Exception:%s', e)
@@ -459,7 +463,7 @@ class LogicNormal(object):
             whitelist_programs = req.form.getlist('tving_whitelist[]')
             whitelist_program = ', '.join(whitelist_programs)
             logger.debug(whitelist_program)
-            whitelist_program = ModelTvingSetting.set('whitelist_program',whitelist_program)
+            ModelTvingSetting.set('whitelist_program',whitelist_program)
             return True                  
         except Exception as e: 
             logger.error('Exception:%s', e)
