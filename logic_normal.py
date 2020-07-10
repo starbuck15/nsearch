@@ -52,62 +52,51 @@ class LogicNormal(object):
             auto_wavve_whitelist_limit = ModelSetting.get_int('auto_wavve_whitelist_limit')
             auto_tving_whitelist_active = ModelSetting.get_bool('auto_tving_whitelist_active')
             auto_tving_whitelist_limit = ModelSetting.get_int('auto_tving_whitelist_limit')
+            auto_priority = ModelSetting.get_int('auto_priority')
             
+            if auto_wavve_whitelist_active and auto_tving_whitelist_active:
+                auto_wavve_whitelist = LogicNormal.wavve_get_cfpopular_list(auto_wavve_whitelist_limit)
+                auto_tving_whitelist = LogicNormal.tving_get_popular_list(auto_tving_whitelist_limit)
+                if auto_priority == 0: # wavve + tving
+                    pass
+                elif auto_priority == 1: # wavve > tving
+                    auto_tving_whitelist = list(set(auto_tving_whitelist) - set(auto_wavve_whitelist))
+                elif auto_priority == 2: # wavve < tving
+                    auto_wavve_whitelist = list(set(auto_wavve_whitelist) - set(auto_tving_whitelist))
+            elif auto_wavve_whitelist_active:
+                auto_wavve_whitelist = LogicNormal.wavve_get_cfpopular_list(auto_wavve_whitelist_limit)
+            elif auto_tving_whitelist_active:
+                auto_tving_whitelist = LogicNormal.tving_get_popular_list(auto_tving_whitelist_limit)
+
             if auto_wavve_whitelist_active:
-                ret = LogicNormal.wavve_get_cfpopular_list()
-                if ret['ret']:
-                    auto_wavve_whitelist = [x['title_list'][0]['text'].strip() for x in ret['data']['cell_toplist']['celllist']]
-                    if auto_wavve_whitelist_limit > len(auto_wavve_whitelist):
-                        auto_wavve_whitelist_limit = len(auto_wavve_whitelist)
-                    auto_wavve_whitelist = auto_wavve_whitelist[:auto_wavve_whitelist_limit]
-                    auto_wavve_whitelist = Util.get_list_except_empty(auto_wavve_whitelist)
-
-                    from wavve.model import ModelSetting as ModelWavveSetting
-                    whitelist_program = ModelWavveSetting.get('whitelist_program')
-                    whitelist_programs = [x.strip() for x in whitelist_program.replace('\n', ',').split(',')]
-                    whitelist_programs = Util.get_list_except_empty(whitelist_programs)
-
-                    new_whitelist_programs = whitelist_programs + auto_wavve_whitelist
-                    new_whitelist_programs = list(set(new_whitelist_programs))
-                    new_whitelist_program = ', '.join(new_whitelist_programs)
-                    
-                    added_whitelist_programs = list(set(new_whitelist_programs) - set(whitelist_programs))
-                    added_whitelist_program = ', '.join(added_whitelist_programs)
-                    logger.info('added_wavve_programs:%s', added_whitelist_program)
-                    
-                    ModelWavveSetting.set('whitelist_program',new_whitelist_program)
+                cur_wavve_whitelist = LogicNormal.wavve_get_whitelist()
+                new_wavve_whitelist = list(set(cur_wavve_whitelist + auto_wavve_whitelist))
+                ret = LogicNormal.wavve_set_whitelist(new_wavve_whitelist)
+                if ret:
+                    added_whitelist = list(set(new_wavve_whitelist) - set(cur_wavve_whitelist))
+                    if len(added_whitelist):
+                        added_whitelist_program = ', '.join(added_whitelist)
+                        logger.info('added_wavve_programs:%s', added_whitelist_program)
 
             if auto_tving_whitelist_active:
-                ret = LogicNormal.tving_get_popular_list()
-                if ret['ret']:
-                    auto_tving_whitelist = [x['program']['name']['ko'].strip() for x in ret['data']['body']['result']]
-                    if auto_tving_whitelist_limit > len(auto_tving_whitelist):
-                        auto_tving_whitelist_limit = len(auto_tving_whitelist)
-                    auto_tving_whitelist = auto_tving_whitelist[:auto_tving_whitelist_limit]
-                    auto_tving_whitelist = Util.get_list_except_empty(auto_tving_whitelist)
-
-                    from tving.model import ModelSetting as ModelTvingSetting
-                    whitelist_program = ModelTvingSetting.get('whitelist_program')
-                    whitelist_programs = [x.strip() for x in whitelist_program.replace('\n', ',').split(',')]
-                    whitelist_programs = Util.get_list_except_empty(whitelist_programs)
-
-                    new_whitelist_programs = whitelist_programs + auto_tving_whitelist
-                    new_whitelist_programs = list(set(new_whitelist_programs))
-                    new_whitelist_program = ', '.join(new_whitelist_programs)
-                    
-                    added_whitelist_programs = list(set(new_whitelist_programs) - set(whitelist_programs))
-                    added_whitelist_program = ', '.join(added_whitelist_programs)
-                    logger.info('added_tving_programs:%s', added_whitelist_program)
-                    
-                    ModelTvingSetting.set('whitelist_program',new_whitelist_program)
+                cur_tving_whitelist = LogicNormal.tving_get_whitelist()
+                new_tving_whitelist = list(set(cur_tving_whitelist + auto_tving_whitelist))
+                ret = LogicNormal.tving_set_whitelist(new_tving_whitelist)
+                if ret:
+                    added_whitelist = list(set(new_tving_whitelist) - set(cur_tving_whitelist))
+                    if len(added_whitelist):
+                        added_whitelist_program = ', '.join(added_whitelist)
+                        logger.info('added_tving_programs:%s', added_whitelist_program)
 
             logger.debug('=======================================')
         except Exception as e: 
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
 
+    #########################################################
+    
     @staticmethod
-    def wavve_get_search_list(keyword, type='all', page=1):
+    def wavve_get_search_json(keyword, type='all', page=1):
         try:
             param = LogicNormal.wavve_config['base_parameter'].copy()
             param['type'] = type
@@ -124,26 +113,7 @@ class LogicNormal(object):
             logger.error(traceback.format_exc())
 
     @staticmethod
-    def wavve_search_keyword(keyword, type='all', page=1):
-        try:
-            data = LogicNormal.wavve_get_search_list(keyword, type, page)
-
-            if int(data[0]['totalcount']) > 0:
-                return {'ret': True,
-                        'page': page,
-                        'keyword': keyword,
-                        'data': data}
-            else:
-                return {'ret': False,
-                        'page': page,
-                        'keyword': keyword,
-                        'data': data}
-        except Exception as e:
-            logger.error('Exception:%s', e)
-            logger.error(traceback.format_exc())
-
-    @staticmethod
-    def tving_get_search_list(keyword, type='all', page=1):
+    def tving_get_search_json(keyword, type='all', page=1):
         try:
             param = {}
             param['kwd'] = keyword
@@ -158,26 +128,7 @@ class LogicNormal(object):
             logger.error(traceback.format_exc())
 
     @staticmethod
-    def tving_search_keyword(keyword, type='all', page=1):
-        try:
-            data = LogicNormal.tving_get_search_list(keyword, type, page)
-
-            if int(data['programRsb']['count']) > 0:
-                return {'ret': True,
-                        'page': page,
-                        'keyword': keyword,
-                        'data': data['programRsb']['dataList']}
-            else:
-                return {'ret': False,
-                        'page': page,
-                        'keyword': keyword,
-                        'data': data}
-        except Exception as e:
-            logger.error('Exception:%s', e)
-            logger.error(traceback.format_exc())
-
-    @staticmethod
-    def wavve_get_popular_list(type='all'):
+    def wavve_get_popular_json(type='all'):
         try:
             param = LogicNormal.wavve_config['base_parameter'].copy()
             if type == 'dra':
@@ -212,7 +163,7 @@ class LogicNormal(object):
             logger.error(traceback.format_exc())
 
     @staticmethod
-    def wavve_get_cfpopular_list(type='all'):
+    def wavve_get_cfpopular_json(type='all'):
         try:
             param = LogicNormal.wavve_config['base_parameter'].copy()
             if type == 'dra':
@@ -252,7 +203,7 @@ class LogicNormal(object):
             logger.error(traceback.format_exc())
 
     @staticmethod
-    def tving_get_popular_list(type='all'):
+    def tving_get_popular_json(type='all'):
         try:
             param = {}
             if type == 'dra':
@@ -282,7 +233,7 @@ class LogicNormal(object):
             logger.error(traceback.format_exc())
 
     @staticmethod
-    def tving_get_SMTV_PROG_4K_list(type='program'):
+    def tving_get_SMTV_PROG_4K_json(type='program'):
         try:
             param = {}
             if type == 'program':
@@ -302,6 +253,84 @@ class LogicNormal(object):
                 return {'ret': False,
                         'type': type,
                         'data': data}
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
+    #########################################################
+
+    @staticmethod
+    def wavve_search_keyword(keyword, type='all', page=1):
+        try:
+            data = LogicNormal.wavve_get_search_json(keyword, type, page)
+
+            if int(data[0]['totalcount']) > 0:
+                return {'ret': True,
+                        'page': page,
+                        'keyword': keyword,
+                        'data': data}
+            else:
+                return {'ret': False,
+                        'page': page,
+                        'keyword': keyword,
+                        'data': data}
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
+    @staticmethod
+    def tving_search_keyword(keyword, type='all', page=1):
+        try:
+            data = LogicNormal.tving_get_search_json(keyword, type, page)
+
+            if int(data['programRsb']['count']) > 0:
+                return {'ret': True,
+                        'page': page,
+                        'keyword': keyword,
+                        'data': data['programRsb']['dataList']}
+            else:
+                return {'ret': False,
+                        'page': page,
+                        'keyword': keyword,
+                        'data': data}
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
+    @staticmethod
+    def wavve_get_cfpopular_list(limit):
+        try:
+            data = []
+            ret = LogicNormal.wavve_get_cfpopular_json()
+            if ret['ret']:
+                data = [x['title_list'][0]['text'].strip() for x in ret['data']['cell_toplist']['celllist']]
+                if limit > len(data):
+                    limit = len(data)
+                data = data[:limit]
+                # Ignore delimiter (,) in title.
+                sdata = ', '.join(data)
+                data = [x.strip() for x in sdata.split(',')]
+                data = Util.get_list_except_empty(data)
+            return data
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
+    @staticmethod
+    def tving_get_popular_list(limit):
+        try:
+            data = []
+            ret = LogicNormal.tving_get_popular_json()
+            if ret['ret']:
+                data = [x['program']['name']['ko'].strip() for x in ret['data']['body']['result']]
+                if limit > len(data):
+                    limit = len(data)
+                data = data[:limit]
+                # Ignore delimiter (,) in title.
+                sdata = ', '.join(data)
+                data = [x.strip() for x in sdata.split(',')]
+                data = Util.get_list_except_empty(data)
+            return data
         except Exception as e:
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
@@ -346,8 +375,10 @@ class LogicNormal(object):
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
             
+    #########################################################
+    
     @staticmethod
-    def wavve_programs():
+    def wavve_get_programs_in_db():
         try:
             import datetime
             from wavve.model import ModelSetting as ModelWavveSetting
@@ -395,7 +426,7 @@ class LogicNormal(object):
             logger.error(traceback.format_exc())
 
     @staticmethod
-    def tving_programs():
+    def tving_get_programs_in_db():
         try:
             import datetime
             from tving.model import ModelSetting as ModelTvingSetting
@@ -443,28 +474,50 @@ class LogicNormal(object):
             logger.error(traceback.format_exc())
 
     @staticmethod
-    def wavve_whitelist_save(req):
+    def wavve_get_whitelist():
         try:
             from wavve.model import ModelSetting as ModelWavveSetting
-            whitelist_programs = req.form.getlist('wavve_whitelist[]')
-            whitelist_program = ', '.join(whitelist_programs)
-            logger.debug(whitelist_program)
-            ModelWavveSetting.set('whitelist_program',whitelist_program)
-            return True                  
+            whitelist_program = ModelWavveSetting.get('whitelist_program')
+            whitelist_programs = [x.strip() for x in whitelist_program.replace('\n', ',').split(',')]
+            whitelist_programs = Util.get_list_except_empty(whitelist_programs)
+            return whitelist_programs
         except Exception as e: 
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
             return False
 
     @staticmethod
-    def tving_whitelist_save(req):
+    def tving_get_whitelist():
+        try:
+            from tving.model import ModelSetting as ModelWavveSetting
+            whitelist_program = ModelWavveSetting.get('whitelist_program')
+            whitelist_programs = [x.strip() for x in whitelist_program.replace('\n', ',').split(',')]
+            whitelist_programs = Util.get_list_except_empty(whitelist_programs)
+            return whitelist_programs
+        except Exception as e: 
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+            return False
+    
+    @staticmethod
+    def wavve_set_whitelist(whitelist_programs):
+        try:
+            from wavve.model import ModelSetting as ModelWavveSetting
+            whitelist_program = ', '.join(whitelist_programs)
+            ModelWavveSetting.set('whitelist_program',whitelist_program)
+            return True
+        except Exception as e: 
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+            return False
+
+    @staticmethod
+    def tving_set_whitelist(whitelist_programs):
         try:
             from tving.model import ModelSetting as ModelTvingSetting
-            whitelist_programs = req.form.getlist('tving_whitelist[]')
             whitelist_program = ', '.join(whitelist_programs)
-            logger.debug(whitelist_program)
             ModelTvingSetting.set('whitelist_program',whitelist_program)
-            return True                  
+            return True
         except Exception as e: 
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())

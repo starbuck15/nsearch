@@ -13,7 +13,7 @@ from flask_login import login_user, logout_user, current_user, login_required
 
 # sjva 공용
 from framework.logger import get_logger
-from framework import app, db, scheduler, path_data, socketio
+from framework import app, db, scheduler, path_data, socketio, path_app_root, check_api
 from framework.util import Util
 from system.logic import SystemLogic
 
@@ -42,7 +42,7 @@ menu = {
 }
 
 plugin_info = {
-    'version' : '0.0.6.1',
+    'version' : '0.0.6.5',
     'name' : 'nSearch',
     'category_name' : 'vod',
     'icon' : '',
@@ -88,8 +88,8 @@ def detail(sub):
             arg = ModelSetting.to_dict()
             arg['scheduler'] = str(scheduler.is_include(package_name))
             arg['is_running'] = str(scheduler.is_running(package_name))
-            wavve_programs = LogicNormal.wavve_programs()
-            tving_programs = LogicNormal.tving_programs()
+            wavve_programs = LogicNormal.wavve_get_programs_in_db()
+            tving_programs = LogicNormal.tving_get_programs_in_db()
             return render_template('%s_whitelist.html' % (package_name), arg=arg, wavve_programs = wavve_programs, tving_programs = tving_programs) 
         except Exception as e:
             logger.error('Exception:%s', e)
@@ -139,6 +139,7 @@ def detail(sub):
 # For UI (보통 웹에서 요청하는 정보에 대한 결과를 리턴한다.)
 #########################################################
 @blueprint.route('/ajax/<sub>', methods=['GET', 'POST'])
+@login_required
 def ajax(sub):
     logger.debug('AJAX %s %s', package_name, sub)
     try:
@@ -150,6 +151,7 @@ def ajax(sub):
                 logger.error('Exception:%s', e)
                 logger.error(traceback.format_exc())
                 return jsonify('fail')
+
         elif sub == 'scheduler':
             try:
                 go = request.form['scheduler']
@@ -163,6 +165,23 @@ def ajax(sub):
                 logger.error('Exception:%s', e)
                 logger.error(traceback.format_exc())
                 return jsonify('fail')
+
+        elif sub == 'one_execute':
+            try:
+                ret = Logic.one_execute()
+                return jsonify(ret)
+            except Exception as e:
+                logger.error('Exception:%s', e)
+                logger.error(traceback.format_exc())
+                return jsonify('fail')
+
+        elif sub == 'reset_db':
+            try:
+                ret = Logic.reset_whitelist()
+                return jsonify(ret)
+            except Exception as e:
+                logger.error('Exception:%s', e)
+                logger.error(traceback.format_exc())
 
         elif sub == 'wavve_search':
             try:
@@ -188,7 +207,8 @@ def ajax(sub):
 
         elif sub == 'wavve_whitelist_save':
             try:
-                ret = LogicNormal.wavve_whitelist_save(request)
+                whitelist_programs = request.form.getlist('wavve_whitelist[]')
+                ret = LogicNormal.wavve_set_whitelist(whitelist_programs)
                 return jsonify(ret)
             except Exception as e: 
                 logger.error('Exception:%s', e)
@@ -196,7 +216,8 @@ def ajax(sub):
 
         elif sub == 'tving_whitelist_save':
             try:
-                ret = LogicNormal.tving_whitelist_save(request)
+                whitelist_programs = request.form.getlist('tving_whitelist[]')
+                ret = LogicNormal.tving_set_whitelist(whitelist_programs)
                 return jsonify(ret)
             except Exception as e: 
                 logger.error('Exception:%s', e)
@@ -206,7 +227,7 @@ def ajax(sub):
             try:
                 type = request.form['type']
                 # ret = LogicNormal.wavve_get_popular_list(type) # Unwanted thumbnail
-                ret = LogicNormal.wavve_get_cfpopular_list(type)
+                ret = LogicNormal.wavve_get_cfpopular_json(type)
                 return jsonify(ret)
             except Exception as e:
                 logger.error('Exception:%s', e)
@@ -215,7 +236,7 @@ def ajax(sub):
         elif sub == 'tving_popular':
             try:
                 type = request.form['type']
-                ret = LogicNormal.tving_get_popular_list(type)
+                ret = LogicNormal.tving_get_popular_json(type)
                 return jsonify(ret)
             except Exception as e:
                 logger.error('Exception:%s', e)
@@ -224,7 +245,7 @@ def ajax(sub):
         elif sub == 'tving4k':
             try:
                 type = request.form['type']
-                ret = LogicNormal.tving_get_SMTV_PROG_4K_list(type)
+                ret = LogicNormal.tving_get_SMTV_PROG_4K_json(type)
                 return jsonify(ret)
             except Exception as e:
                 logger.error('Exception:%s', e)
@@ -248,6 +269,7 @@ def ajax(sub):
 # API
 #########################################################
 @blueprint.route('/api/<sub>', methods=['GET', 'POST'])
+@check_api
 def api(sub):
     logger.debug('api %s %s', package_name, sub)
     

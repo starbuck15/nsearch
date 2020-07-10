@@ -32,7 +32,8 @@ class Logic(object):
         'auto_wavve_whitelist_active' : 'False',
         'auto_wavve_whitelist_limit' : '20',
         'auto_tving_whitelist_active' : 'False',
-        'auto_tving_whitelist_limit' : '20'
+        'auto_tving_whitelist_limit' : '20',
+        'auto_priority' : '0'
     }
 
     @staticmethod
@@ -88,9 +89,52 @@ class Logic(object):
             logger.error(traceback.format_exc())
 
     @staticmethod
+    def one_execute():
+        try:
+            if scheduler.is_include(package_name):
+                if scheduler.is_running(package_name):
+                    ret = 'is_running'
+                else:
+                    scheduler.execute_job(package_name)
+                    ret = 'scheduler'
+            else:
+
+                def func():
+                    time.sleep(2)
+                    Logic.scheduler_function()
+
+                threading.Thread(target=func, args=()).start()
+                ret = 'thread'
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+            ret = 'fail'
+
+        return ret
+        
+    @staticmethod
     def scheduler_function():
         try:
             LogicNormal.scheduler_function()
         except Exception as e:
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
+
+    @staticmethod
+    def reset_whitelist():
+        try:
+            empty = []
+            try:
+                LogicNormal.wavve_set_whitelist(empty)
+            except Exception:
+                pass
+            try:
+                LogicNormal.tving_set_whitelist(empty)
+            except Exception:
+                pass
+            return True
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+            return False
+    
