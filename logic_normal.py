@@ -20,13 +20,13 @@ from framework.util import Util
 
 # 패키지
 from .plugin import logger, package_name
-from .model import ModelSetting
+from .model import ModelSetting, ModelAutoHistory
 
 #########################################################
 
 class LogicNormal(object):
     wavve_config = {
-        'base_url': 'https://apis.pooq.co.kr',
+        'base_url': 'https://apis.wavve.com',
         'base_parameter': {
             'apikey': 'E5F3E0D30947AA5440556471321BB6D9',
             'credential': 'none',
@@ -57,8 +57,8 @@ class LogicNormal(object):
             auto_delete = ModelSetting.get_bool('auto_delete')
             
             if auto_wavve_whitelist_active and auto_tving_whitelist_active:
-                auto_wavve_whitelist = LogicNormal.wavve_get_cfpopular_list(auto_wavve_whitelist_limit)
-                auto_tving_whitelist = LogicNormal.tving_get_popular_list(auto_tving_whitelist_limit)
+                auto_wavve_whitelist, auto_wavve_total = LogicNormal.wavve_get_cfpopular_list(auto_wavve_whitelist_limit)
+                auto_tving_whitelist, auto_tving_total = LogicNormal.tving_get_popular_list(auto_tving_whitelist_limit)
                 if auto_priority == 0: # wavve + tving
                     pass
                 elif auto_priority == 1: # wavve > tving
@@ -66,9 +66,9 @@ class LogicNormal(object):
                 elif auto_priority == 2: # wavve < tving
                     auto_wavve_whitelist = list(set(auto_wavve_whitelist) - set(auto_tving_whitelist))
             elif auto_wavve_whitelist_active:
-                auto_wavve_whitelist = LogicNormal.wavve_get_cfpopular_list(auto_wavve_whitelist_limit)
+                auto_wavve_whitelist, auto_wavve_total = LogicNormal.wavve_get_cfpopular_list(auto_wavve_whitelist_limit)
             elif auto_tving_whitelist_active:
-                auto_tving_whitelist = LogicNormal.tving_get_popular_list(auto_tving_whitelist_limit)
+                auto_tving_whitelist, auto_tving_total = LogicNormal.tving_get_popular_list(auto_tving_whitelist_limit)
 
             if auto_wavve_whitelist_active:
                 cur_wavve_whitelist = LogicNormal.wavve_get_whitelist()
@@ -81,6 +81,21 @@ class LogicNormal(object):
                     if len(added_whitelist):
                         added_whitelist_program = ', '.join(added_whitelist)
                         logger.info('added_wavve_programs:%s', added_whitelist_program)
+                        for title in added_whitelist:
+                            data = {}
+                            data['source'] = 'wavve'
+                            data['title'] = title
+                            data['img_url'] = ''
+                            data['program_id'] = ''
+                            data['episode_id'] = ''
+                            try:
+                                total = next((x for x in auto_wavve_total if x['title'] == title), False)
+                                data['img_url'] = total['img_url']
+                                data['program_id'] = total['program_id']
+                                data['episode_id'] = total['episode_id']
+                            except Exception as e:
+                                pass
+                            ModelAutoHistory.save(data)
 
             if auto_tving_whitelist_active:
                 cur_tving_whitelist = LogicNormal.tving_get_whitelist()
@@ -93,6 +108,21 @@ class LogicNormal(object):
                     if len(added_whitelist):
                         added_whitelist_program = ', '.join(added_whitelist)
                         logger.info('added_tving_programs:%s', added_whitelist_program)
+                        for title in added_whitelist:
+                            data = {}
+                            data['source'] = 'tving'
+                            data['title'] = title
+                            data['img_url'] = ''
+                            data['program_id'] = ''
+                            data['episode_id'] = ''
+                            try:
+                                total = next((x for x in auto_tving_total if x['title'] == title), False)
+                                data['img_url'] = 'image.tving.com' + total['img_url']
+                                data['program_id'] = total['program_id']
+                                data['episode_id'] = total['episode_id']
+                            except Exception as e:
+                                pass
+                            ModelAutoHistory.save(data)
 
             logger.debug('=======================================')
         except Exception as e: 
@@ -172,18 +202,24 @@ class LogicNormal(object):
     def wavve_get_cfpopular_json(type='all'):
         try:
             param = LogicNormal.wavve_config['base_parameter'].copy()
+            param['uiparent'] = 'FN0'
+            param['uirank'] = '0'
             if type == 'dra':
                 param['genre'] = '01'
                 param['broadcastid'] = 'FN0_VN327_pc'
+                param['uitype'] = 'VN327'
             elif type == 'ent':
                 param['genre'] = '02'
                 param['broadcastid'] = 'FN0_VN326_pc'
+                param['uitype'] = 'VN326'
             elif type == 'doc':
                 param['genre'] = '03'
                 param['broadcastid'] = 'FN0_VN328_pc'
+                param['uitype'] = 'VN328'
             else:
                 param['genre'] = 'all' # 01 드라마, 02 예능, 03 시사교양, 09 해외시리즈, 08 애니메이션, 06 키즈, 05 스포츠
                 param['broadcastid'] = 'FN0_VN327_pc' # unknown
+                param['uitype'] = 'VN327' # unknown
             param['WeekDay'] = 'all'
             param['came'] = 'broadcast'
             param['subgenre'] = 'all'
@@ -309,10 +345,32 @@ class LogicNormal(object):
     @staticmethod
     def wavve_get_cfpopular_list(limit):
         try:
+            # data = []
+            # ret = LogicNormal.wavve_get_cfpopular_json()
+            # if ret['ret']:
+            #     data = [x['title_list'][0]['text'].strip() for x in ret['data']['cell_toplist']['celllist']]
+            #     if limit > len(data):
+            #         limit = len(data)
+            #     data = data[:limit]
+            #     # Ignore delimiter (,) in title.
+            #     sdata = ', '.join(data)
+            #     data = [x.strip() for x in sdata.split(',')]
+            #     data = Util.get_list_except_empty(data)
+
             data = []
+            data_total = []
             ret = LogicNormal.wavve_get_cfpopular_json()
             if ret['ret']:
                 data = [x['title_list'][0]['text'].strip() for x in ret['data']['cell_toplist']['celllist']]
+                for x in ret['data']['cell_toplist']['celllist']:
+                    item = {}
+                    item['source'] = 'wavve'
+                    item['title'] = x['title_list'][0]['text'].strip()
+                    item['img_url'] = x['thumbnail']
+                    item['program_id'] = ''
+                    item['episode_id'] = x['event_list'][0]['bodylist'][3].split(':')[1]
+                    data_total.append(item)
+
                 if limit > len(data):
                     limit = len(data)
                 data = data[:limit]
@@ -320,7 +378,7 @@ class LogicNormal(object):
                 sdata = ', '.join(data)
                 data = [x.strip() for x in sdata.split(',')]
                 data = Util.get_list_except_empty(data)
-            return data
+            return data, data_total
         except Exception as e:
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
@@ -328,10 +386,33 @@ class LogicNormal(object):
     @staticmethod
     def tving_get_popular_list(limit):
         try:
+            # data = []
+            # ret = LogicNormal.tving_get_popular_json()
+            # if ret['ret']:
+            #     data = [x['program']['name']['ko'].strip() for x in ret['data']['body']['result']]
+            #     if limit > len(data):
+            #         limit = len(data)
+            #     data = data[:limit]
+            #     # Ignore delimiter (,) in title.
+            #     sdata = ', '.join(data)
+            #     data = [x.strip() for x in sdata.split(',')]
+            #     data = Util.get_list_except_empty(data)
+
             data = []
+            data_total = []
             ret = LogicNormal.tving_get_popular_json()
             if ret['ret']:
                 data = [x['program']['name']['ko'].strip() for x in ret['data']['body']['result']]
+                for x in ret['data']['body']['result']:
+                    item = {}
+                    item['source'] = 'tving'
+                    item['title'] = x['program']['name']['ko'].strip()
+                    tmp = x['program']['image']
+                    item['img_url'] = next((x for x in tmp if x['code'] == 'CAIP0900'), False)['url']
+                    item['program_id'] = x['program']['code']
+                    item['episode_id'] = x['episode']['code']
+                    data_total.append(item)
+
                 if limit > len(data):
                     limit = len(data)
                 data = data[:limit]
@@ -339,7 +420,7 @@ class LogicNormal(object):
                 sdata = ', '.join(data)
                 data = [x.strip() for x in sdata.split(',')]
                 data = Util.get_list_except_empty(data)
-            return data
+            return data, data_total
         except Exception as e:
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
@@ -589,4 +670,3 @@ class LogicNormal(object):
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
             return False
-    

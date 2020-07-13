@@ -1,66 +1,24 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div>
-  <nav> 
-    {{ macros.m_tab_head_start() }}
-      {{ macros.m_tab_head('설정', false) }}
-      {{ macros.m_tab_head('검색', true) }}
-    {{ macros.m_tab_head_end() }}
-  </nav>  
-
-  <div class="tab-content" id="nav-tabContent">
-    {{ macros.m_tab_content_start('검색', true) }}
-      <form>
-      {{ macros.setting_input_text_and_buttons('wavve_keyword', '웨이브 검색어', [['wavve_search', '검색'], ['go_wavve_search', '웨이브']]) }}
-      </form>
-      <form>
-      {{ macros.setting_input_text_and_buttons('tving_keyword', '티빙 검색어', [['tving_search', '검색'], ['go_tving_search', '티　빙']]) }}
-      </form>
-      <div id='list'></div>
-      <div id="list_more"></div>
-    {{ macros.m_tab_content_end() }}
-
-    {{ macros.m_tab_content_start('설정', false) }}
-      <form id="setting">
-      {{ macros.setting_input_text('wavve_plugin', 'wavve plugin name', value=arg['wavve_plugin'], desc='Wavve 플러그인 이름을 입력하세요. ') }}
-      {{ macros.setting_input_text('tving_plugin', 'tving plugin name', value=arg['tving_plugin'], desc='Tving 플러그인 이름을 입력하세요. ') }}
-      {{ macros.setting_select('list_method', '출력 방식', [['album', '앨범형'], ['list', '리스트형']], col='3', value=arg['list_method']) }}
-      {{ macros.setting_button([['setting_save_btn', '저장']]) }}
-      </form>
-    {{ macros.m_tab_content_end() }}
-
-  </div><!--tab-content-->
-</div> <!--전체-->
+<div class="container-fluid">
+  <form>
+  {{ macros.setting_input_text_and_buttons('wavve_keyword', '웨이브 검색어', [['wavve_search', '검색'], ['go_wavve_search', '웨이브']]) }}
+  </form>
+  <form>
+  {{ macros.setting_input_text_and_buttons('tving_keyword', '티빙 검색어', [['tving_search', '검색'], ['go_tving_search', '티　빙']]) }}
+  </form>
+  <div id='list'></div>
+  <div id="list_more"></div>
+</div>
 
 
 <script type="text/javascript">
-var package_name = "nsearch";
-var wavve_plugin = "{{arg['wavve_plugin']}}";
-var tving_plugin = "{{arg['tving_plugin']}}";
+var package_name = "{{arg['package_name'] }}";
+var wavve_plugin = "wavve";
+var tving_plugin = "tving";
 
 $(document).ready(function(){
-
-  //설정 저장
-  $("#setting_save_btn").click(function(e) {
-    e.preventDefault();
-    var formData = get_formdata('#setting');
-    $.ajax({
-      url: '/' + package_name + '/ajax/setting_save',
-      type: "POST",
-      cache: false,
-      data: formData,
-      dataType: "json",
-      success: function (ret) {
-        if (ret == 1) {
-          $.notify('<strong>설정을 저장하였습니다.</strong>', {
-	          type: 'success'
-          });
-        }
-      }
-    });
-  });
-
   // 검색
   $("#wavve_search").click(function(e) {
     e.preventDefault();
@@ -235,9 +193,8 @@ function wavve_make_list(ret) {
     str += '<div>';
     str += '<div class="btn-group btn-group-sm flex-wrap mr-2" role="group">';
     str += ' <button id="wavve_program_basic_analyze" name="submit" class="btn btn-sm  btn-outline-success" data-code="'+data[i].programid+'">분석</button>';
-    //str += ' <button id="wavve_program_series_analyze" name="submit" class="btn btn-sm  btn-outline-success" data-code="'+data[i].programid+'">시리즈 - 분석</button>';
-    str += ' <button id="wavve_whitelist_program_btn" name="submit" class="btn btn-sm  btn-outline-success" data-program="'+data[i].programtitle+'">자동 - 포함</button>';
-    str += ' <button id="wavve_except_program_btn" name="submit" class="btn btn-sm  btn-outline-success" data-program="'+data[i].programtitle+'">자동 - 제외</button>';
+    str += ' <button id="wavve_whitelist_program_btn" name="submit" class="btn btn-sm  btn-outline-success" data-program="'+data[i].programtitle+'">화이트리스트 추가</button>';
+    str += ' <button id="wavve_except_program_btn" name="submit" class="btn btn-sm  btn-outline-success" data-program="'+data[i].programtitle+'">블랙리스트 추가</button>';
     str += '</div>';
     str += '</div>';
     str += '</div>';
@@ -291,9 +248,8 @@ function tving_make_list(ret) {
     str += '<div>';
     str += '<div class="btn-group btn-group-sm flex-wrap mr-2" role="group">';
     str += ' <button id="tving_program_basic_analyze" name="submit" class="btn btn-sm  btn-outline-success" data-code="'+data[i].mast_cd+'">분석</button>';
-    //str += ' <button id="tving_program_series_analyze" name="submit" class="btn btn-sm  btn-outline-success" data-code="'+data[i].mast_cd+'">시리즈 - 분석</button>';
-    str += ' <button id="tving_whitelist_program_btn" name="submit" class="btn btn-sm  btn-outline-success" data-program="'+data[i].mast_nm+'">자동 - 포함</button>';
-    str += ' <button id="tving_except_program_btn" name="submit" class="btn btn-sm  btn-outline-success" data-program="'+data[i].mast_nm+'">자동 - 제외</button>';
+    str += ' <button id="tving_whitelist_program_btn" name="submit" class="btn btn-sm  btn-outline-success" data-program="'+data[i].mast_nm+'">화이트리스트 추가</button>';
+    str += ' <button id="tving_except_program_btn" name="submit" class="btn btn-sm  btn-outline-success" data-program="'+data[i].mast_nm+'">블랙리스트 추가</button>';
     str += '</div>';
     str += '</div>';
     str += '</div>';

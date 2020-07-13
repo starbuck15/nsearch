@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block content %}
+
+<ul class="nav nav-pills bg-light shadow text-dark" >
+  <li class="nav-item"><a class="nav-link" href="/nsearch/whitelist/setting">설정</a></li>
+  <li class="nav-item"><a class="nav-link" href="/nsearch/whitelist/history">자동 추가 이력</a></li>
+  <li class="nav-item"><a class="nav-link" href="/nsearch/whitelist/wavve">웨이브</a></li>
+  <li class="nav-item"><a class="nav-link active" href="/nsearch/whitelist/tving">티빙</a></li>
+</ul>
+<div class="d-inline-block"></div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/multi-select/0.9.12/css/multi-select.css" integrity="sha256-anbXVHwk7ydg+eebPilO8853eq2BLHapi0RjUwqWdpo=" crossorigin="anonymous" />
+<style type="text/css">
+.ms-container{
+  background: transparent url('https://cdnjs.cloudflare.com/ajax/libs/multi-select/0.9.12/img/switch.png') no-repeat 50% 50%;
+  width: 100%;
+}
+.ms-container .ms-list{
+  -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
+  -moz-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
+  -webkit-transition: border linear 0.2s, box-shadow linear 0.2s;
+  -moz-transition: border linear 0.2s, box-shadow linear 0.2s;
+  -ms-transition: border linear 0.2s, box-shadow linear 0.2s;
+  -o-transition: border linear 0.2s, box-shadow linear 0.2s;
+  transition: border linear 0.2s, box-shadow linear 0.2s;
+  border: 1px solid #ccc;
+  -webkit-border-radius: 3px;
+  -moz-border-radius: 3px;
+  border-radius: 3px;
+  position: relative;
+  height: 450px;
+  padding: 0;
+  overflow-y: auto;
+}
+
+.custom-header{
+  text-align: center;
+  padding: 3px;
+  background: #000;
+  color: #fff;
+}
+#ms-searchable.ms-container{
+  background-position: 168px 110px;
+}
+input.search-input{
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 5px;
+  height: auto;
+  padding: 4px 6px;
+  border: 1px solid #ccc;
+  -webkit-border-radius: 4px;
+  border-radius: 4px;
+}
+</style>
+
+
+<div id="summary_card" class="card">
+  <div class="card-header">Summary</div>
+  <div class="card-body">
+    <strong>[화이트리스트 / 전체]</strong> : 티빙 ({{ tving_programs.count }} / {{ tving_programs.total }})
+  </div>
+</div>
+
+<div class="mt-3 mb-3">
+  <div class="container">
+    <center>
+      <form id="tving_whitelist">
+      <select multiple="multiple" class="searchable" name="tving_whitelist[]">
+      {% for item in tving_programs.data %}
+      <option value="{{ item.program_name }}"{% if item.whitelist=='1' %} selected="selected"{% endif %}>{{ item.display }}</option>
+      {% endfor %}
+      </select>
+      <div class="mt-3" align="right">
+      <button id="tving_whitelist_save_btn" name="tving_whitelist_save_btn" class="btn btn-sm btn-outline-success mb-1">저장</button>
+      </div>
+      </form>
+    </center>
+  </div>
+</div>
+
+<script type="text/javascript">
+var package_name = "{{arg['package_name'] }}";
+
+$(document).ready(function(){
+});
+
+//설정 저장
+$("#tving_whitelist_save_btn").click(function(e) {
+    e.preventDefault();
+    var formData = get_formdata('#tving_whitelist');
+    $.ajax({
+    url: '/' + package_name + '/ajax/tving_whitelist_save',
+    type: "POST", 
+    cache: false,
+    data: formData,
+    dataType: "json",
+    success: function (ret) {
+        if (ret == 0) {
+        $.notify('<strong>설정을 저장에 실패하였습니다.</strong>', {
+            type: 'warning'
+        });
+        } else if (ret == 1) {
+        $.notify('<strong>설정을 저장하였습니다.</strong>', {
+            type: 'success'
+        });
+        }
+    }
+    });
+});
+
+</script>
+<script type="text/javascript">
+(function($){
+    $(function(){
+    $('#aloha').multiSelect({
+        keepOrder: true
+    });
+    $('.multiselect').multiSelect({});
+
+    $('.searchable').multiSelect({
+        selectableHeader: "<div class='custom-header'>Selectable items</div><input type='text' class='search-input' autocomplete='off' placeholder='검색어를 입력하세요.'>",
+        selectionHeader: "<div class='custom-header'>Selection items</div><input type='text' class='search-input' autocomplete='off' placeholder='검색어를 입력하세요.'>",
+        afterInit: function(ms){
+        var that = this,
+            $selectableSearch = that.$selectableUl.prev(),
+            $selectionSearch = that.$selectionUl.prev(),
+            selectableSearchString = '#'+that.$container.attr('id')+' .ms-elem-selectable:not(.ms-selected)',
+            selectionSearchString = '#'+that.$container.attr('id')+' .ms-elem-selection.ms-selected';
+
+        that.qs1 = $selectableSearch.quicksearch(selectableSearchString)
+        .on('keydown', function(e){
+            if (e.which === 40){
+            that.$selectableUl.focus();
+            return false;
+            }
+        });
+
+        that.qs2 = $selectionSearch.quicksearch(selectionSearchString)
+        .on('keydown', function(e){
+            if (e.which == 40){
+            that.$selectionUl.focus();
+            return false;
+            }
+        });
+        },
+        afterSelect: function(){
+        this.qs1.cache();
+        this.qs2.cache();
+        },
+        afterDeselect: function(){
+        this.qs1.cache();
+        this.qs2.cache();
+        }
+    });
+
+    $('#custom-headers').multiSelect({
+        selectableHeader: "<div class='custom-header'>Selectable item</div>",
+        selectionHeader: "<div class='custom-header'>Selection items</div>",
+        selectableFooter: "<div class='custom-header'>Selectable Footer</div>",
+        selectionFooter: "<div class='custom-header'>Selection Footer</div>"
+    });
+
+    });
+})(jQuery);
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.quicksearch/2.4.0/jquery.quicksearch.js" integrity="sha256-t0DYCfKh8xV4vTTpOO82ifkbmmoLHF9PCvUWJsuRp70=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/multi-select/0.9.12/js/jquery.multi-select.js" integrity="sha256-JU2QMhOvXGZtWxxkQTEgpVjdPHMYMuVYbYzNqfsioNw=" crossorigin="anonymous"></script>
+
+{% endblock %}

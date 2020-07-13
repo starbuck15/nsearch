@@ -123,6 +123,18 @@ class Logic(object):
             logger.error(traceback.format_exc())
 
     @staticmethod
+    def reset_db():
+        try:
+            from .model import ModelAutoHistory
+            db.session.query(ModelAutoHistory).delete()
+            db.session.commit()
+            return True
+        except Exception as e: 
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+            return False
+
+    @staticmethod
     def reset_whitelist():
         try:
             empty = []

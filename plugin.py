@@ -21,7 +21,7 @@ from system.logic import SystemLogic
 package_name = __name__.split('.')[0]
 logger = get_logger(package_name)
 
-from .model import ModelSetting
+from .model import ModelSetting, ModelAutoHistory
 from .logic import Logic
 from .logic_normal import LogicNormal
 
@@ -36,13 +36,13 @@ blueprint = Blueprint(package_name, package_name, url_prefix='/%s' %  package_na
 menu = {
     'main' : [package_name, '검색'],
     'sub' : [
-        ['search', '검색'], ['whitelist', '화이트리스트'], ['wavve_popular', '웨이브 인기'], ['tving_popular', '티빙 인기'], ['tving4k', '티빙 UHD 4K'], ['ratings', '시청률 순위'], ['log', '로그']
+        ['search', '검색'], ['popular', '인기 프로그램'], ['whitelist', '화이트리스트'], ['log', '로그']
     ],
     'category' : 'vod',
 }
 
 plugin_info = {
-    'version' : '0.0.6.9',
+    'version' : '0.0.7',
     'name' : 'nSearch',
     'category_name' : 'vod',
     'icon' : '',
@@ -70,73 +70,78 @@ def home():
 @blueprint.route('/<sub>')
 @login_required
 def detail(sub): 
-    if sub == 'search':
-        try:
-            setting_list = db.session.query(ModelSetting).all()
-            arg = Util.db_list_to_dict(setting_list)
-            # arg['wavve_plugin'] = request.args.get('wavve_plugin')
-            # arg['tving_plugin'] = request.args.get('tving_plugin')
-            # arg['code'] = request.args.get('code')
-            # return render_template('%s_search.html' % package_name, sub=sub, arg=arg)
-            return render_template('%s_search.html' % (package_name), arg=arg)
-        except Exception as e:
-            logger.error('Exception:%s', e)
-            logger.error(traceback.format_exc())
+    try:
+        if sub == 'search':
+            arg = {}
+            arg['package_name']  = package_name
+            return render_template('%s_%s.html' % (package_name, sub), arg=arg)
+        elif sub == 'popular':
+            return redirect('/%s/%s/ratings' % (package_name, sub))
+        elif sub == 'whitelist':
+            return redirect('/%s/%s/history' % (package_name, sub))
+        elif sub == 'log':
+            return render_template('log.html', package=package_name)
+        return render_template('sample.html', title='%s - %s' % (package_name, sub))
+    except Exception as e: 
+        logger.error('Exception:%s', e)
+        logger.error(traceback.format_exc())
 
-    if sub == 'whitelist':
-        try:
-            arg = ModelSetting.to_dict()
-            arg['scheduler'] = str(scheduler.is_include(package_name))
-            arg['is_running'] = str(scheduler.is_running(package_name))
-            wavve_programs = LogicNormal.wavve_get_programs_in_db()
-            tving_programs = LogicNormal.tving_get_programs_in_db()
-            return render_template('%s_whitelist.html' % (package_name), arg=arg, wavve_programs = wavve_programs, tving_programs = tving_programs) 
-        except Exception as e:
-            logger.error('Exception:%s', e)
-            logger.error(traceback.format_exc())
 
-    if sub == 'wavve_popular':
-        try:
-            setting_list = db.session.query(ModelSetting).all()
-            arg = Util.db_list_to_dict(setting_list)
-            return render_template('%s_wavve_popular.html' % (package_name), arg=arg)
-        except Exception as e:
-            logger.error('Exception:%s', e)
-            logger.error(traceback.format_exc())
-
-    if sub == 'tving_popular':
-        try:
-            setting_list = db.session.query(ModelSetting).all()
-            arg = Util.db_list_to_dict(setting_list)
-            return render_template('%s_tving_popular.html' % (package_name), arg=arg)
-        except Exception as e:
-            logger.error('Exception:%s', e)
-            logger.error(traceback.format_exc())
-
-    if sub == 'tving4k':
-        try:
-            setting_list = db.session.query(ModelSetting).all()
-            arg = Util.db_list_to_dict(setting_list)
-            return render_template('%s_tving4k.html' % (package_name), arg=arg)
-        except Exception as e:
-            logger.error('Exception:%s', e)
-            logger.error(traceback.format_exc())
-
-    if sub == 'ratings':
-        try:
-            setting_list = db.session.query(ModelSetting).all()
-            arg = Util.db_list_to_dict(setting_list)
-            return render_template('%s_ratings.html' % (package_name), arg=arg)
-        except Exception as e:
-            logger.error('Exception:%s', e)
-            logger.error(traceback.format_exc())
-
-    elif sub == 'log':
-        return render_template('log.html', package=package_name)
-    return render_template('sample.html', title='%s - %s' % (package_name, sub))
+@blueprint.route('/<sub>/<sub2>')
+@login_required
+def second_menu(sub, sub2):
+    try:
+        if sub == 'popular':
+            if sub2 == 'setting':
+                arg = ModelSetting.to_dict()
+                arg['package_name']  = package_name
+                return render_template('%s_%s_%s.html' % (package_name, sub, sub2), arg=arg)
+            elif sub2 == 'ratings':
+                arg = {}
+                arg['package_name']  = package_name
+                return render_template('%s_%s_%s.html' % (package_name, sub, sub2), arg=arg)
+            elif sub2 == 'wavve':
+                arg = {}
+                arg['package_name']  = package_name
+                return render_template('%s_%s_%s.html' % (package_name, sub, sub2), arg=arg)
+            elif sub2 == 'tving':
+                arg = {}
+                arg['package_name']  = package_name
+                return render_template('%s_%s_%s.html' % (package_name, sub, sub2), arg=arg)
+            elif sub2 == 'tving4k':
+                arg = {}
+                arg['package_name']  = package_name
+                return render_template('%s_%s_%s.html' % (package_name, sub, sub2), arg=arg)
+        elif sub == 'whitelist':
+            if sub2 == 'setting':
+                arg = ModelSetting.to_dict()
+                arg['package_name']  = package_name
+                arg['scheduler'] = str(scheduler.is_include(package_name))
+                arg['is_running'] = str(scheduler.is_running(package_name))
+                return render_template('%s_%s_%s.html' % (package_name, sub, sub2), arg=arg)
+            elif sub2 == 'wavve':
+                arg = {}
+                arg['package_name']  = package_name
+                wavve_programs = LogicNormal.wavve_get_programs_in_db()
+                return render_template('%s_%s_%s.html' % (package_name, sub, sub2), arg=arg, wavve_programs=wavve_programs)
+            elif sub2 == 'tving':
+                arg = {}
+                arg['package_name']  = package_name
+                tving_programs = LogicNormal.tving_get_programs_in_db()
+                return render_template('%s_%s_%s.html' % (package_name, sub, sub2), arg=arg, tving_programs=tving_programs)
+            elif sub2 == 'history':
+                arg = {}
+                arg['package_name']  = package_name
+                return render_template('%s_%s_%s.html' % (package_name, sub, sub2), arg=arg)
+        elif sub == 'log':
+            return render_template('log.html', package=package_name)
+        return render_template('sample.html', title='%s - %s' % (package_name, sub))
+    except Exception as e: 
+        logger.error('Exception:%s', e)
+        logger.error(traceback.format_exc())
 
 #########################################################
-# For UI (보통 웹에서 요청하는 정보에 대한 결과를 리턴한다.)
+# For UI
 #########################################################
 @blueprint.route('/ajax/<sub>', methods=['GET', 'POST'])
 @login_required
@@ -177,11 +182,21 @@ def ajax(sub):
 
         elif sub == 'reset_db':
             try:
+                ret = Logic.reset_db()
+                return jsonify(ret)
+            except Exception as e:
+                logger.error('Exception:%s', e)
+                logger.error(traceback.format_exc())
+                return jsonify('fail')
+
+        elif sub == 'reset_whitelist':
+            try:
                 ret = Logic.reset_whitelist()
                 return jsonify(ret)
             except Exception as e:
                 logger.error('Exception:%s', e)
                 logger.error(traceback.format_exc())
+                return jsonify('fail')
 
         elif sub == 'wavve_search':
             try:
@@ -193,6 +208,7 @@ def ajax(sub):
             except Exception as e:
                 logger.error('Exception:%s', e)
                 logger.error(traceback.format_exc())
+                return jsonify('fail')
 
         elif sub == 'tving_search':
             try:
@@ -204,6 +220,7 @@ def ajax(sub):
             except Exception as e:
                 logger.error('Exception:%s', e)
                 logger.error(traceback.format_exc())
+                return jsonify('fail')
 
         elif sub == 'wavve_whitelist_save':
             try:
@@ -213,6 +230,7 @@ def ajax(sub):
             except Exception as e: 
                 logger.error('Exception:%s', e)
                 logger.error(traceback.format_exc())
+                return jsonify('fail')
 
         elif sub == 'tving_whitelist_save':
             try:
@@ -222,6 +240,7 @@ def ajax(sub):
             except Exception as e: 
                 logger.error('Exception:%s', e)
                 logger.error(traceback.format_exc())
+                return jsonify('fail')
 
         elif sub == 'wavve_popular':
             try:
@@ -232,6 +251,7 @@ def ajax(sub):
             except Exception as e:
                 logger.error('Exception:%s', e)
                 logger.error(traceback.format_exc())
+                return jsonify('fail')
 
         elif sub == 'tving_popular':
             try:
@@ -241,6 +261,7 @@ def ajax(sub):
             except Exception as e:
                 logger.error('Exception:%s', e)
                 logger.error(traceback.format_exc())
+                return jsonify('fail')
 
         elif sub == 'tving4k':
             try:
@@ -250,11 +271,21 @@ def ajax(sub):
             except Exception as e:
                 logger.error('Exception:%s', e)
                 logger.error(traceback.format_exc())
+                return jsonify('fail')
 
         elif sub == 'ratings':
             try:
                 keyword = request.form['keyword']
                 ret = LogicNormal.daum_get_ratings_list(keyword)
+                return jsonify(ret)
+            except Exception as e:
+                logger.error('Exception:%s', e)
+                logger.error(traceback.format_exc())
+                return jsonify('fail')
+
+        elif sub == 'history':
+            try:
+                ret = ModelAutoHistory.web_list(request)
                 return jsonify(ret)
             except Exception as e:
                 logger.error('Exception:%s', e)
