@@ -34,9 +34,9 @@ from .logic_normal import LogicNormal
 blueprint = Blueprint(package_name, package_name, url_prefix='/%s' %  package_name, template_folder=os.path.join(os.path.dirname(__file__), 'templates'))
 
 menu = {
-    'main' : [package_name, '검색'],
+    'main' : [package_name, u'검색'],
     'sub' : [
-        ['search', '검색'], ['popular', '인기 프로그램'], ['whitelist', '화이트리스트'], ['log', '로그']
+        ['search', u'검색'], ['popular', u'인기 프로그램'], ['whitelist', u'화이트리스트'], ['log', u'로그']
     ],
     'category' : 'vod',
 }
