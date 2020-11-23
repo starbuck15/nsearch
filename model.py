@@ -151,7 +151,7 @@ class ModelAutoHistory(db.Model):
             if by_dict:
                 tmp = [x.as_dict() for x in tmp]
             return tmp
-        except Exception, e:
+        except Exception as e:
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
 
@@ -188,7 +188,7 @@ class ModelAutoHistory(db.Model):
             ret['list'] = [item.as_dict() for item in lists]
             ret['paging'] = Util.get_paging_info(count, page, page_size)
             return ret
-        except Exception, e:
+        except Exception as e:
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
 

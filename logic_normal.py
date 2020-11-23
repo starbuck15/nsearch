@@ -4,19 +4,18 @@
 import os
 import datetime
 import traceback
-import urllib
 from datetime import datetime
 
 # third-party
 import json
 import requests
-import urllib
 import lxml.html
 
 # sjva 공용
 from framework import app, db, scheduler, path_app_root, celery
 from framework.job import Job
 from framework.util import Util
+from framework import py_urllib
 
 # 패키지
 from .plugin import logger, package_name
@@ -140,7 +139,7 @@ class LogicNormal(object):
             param['offset'] = (int(page) - 1) * 20
             param['limit'] = 20
             param['orderby'] = 'score'
-            url = '%s/search?%s' % (LogicNormal.wavve_config['base_url'], urllib.urlencode(param))
+            url = '%s/search?%s' % (LogicNormal.wavve_config['base_url'], py_urllib.urlencode(param))
             res = requests.get(url)
             data = res.json()
             return data
@@ -155,7 +154,7 @@ class LogicNormal(object):
             param['kwd'] = keyword
             param['notFoundText'] = keyword
             default_param = 'siteName=TVING_WEB&category=PROGRAM&pageNum=%s&pageSize=50&indexType=both&methodType=allwordthruindex&payFree=ALL&runTime=ALL&grade=ALL&genre=ALL&screen=CSSD0100&os=CSOD0900&network=CSND0900&sort1=ins_dt&sort2=frequency&sort3=NO&type1=desc&type2=desc&type3=desc&fixedType=Y&spcMethod=someword&spcSize=0&adult_yn=&reKwd=&xwd=' % page
-            url = '%s/search/getSearch.jsp?%s&%s' % (LogicNormal.tving_config['search_url'], default_param, urllib.urlencode(param))
+            url = '%s/search/getSearch.jsp?%s&%s' % (LogicNormal.tving_config['search_url'], default_param, py_urllib.urlencode(param))
             res = requests.get(url)
             data = res.json()
             return data
@@ -181,8 +180,8 @@ class LogicNormal(object):
             param['offset'] = '0'
             param['limit'] = '30'
             # params['onair'] = 'y' # all 전체, y 방영중, n 종영 ## valid in popularprograms
-            # url = '%s/vod/popularprograms?%s' % (LogicNormal.wavve_config['base_url'], urllib.urlencode(param))
-            url = '%s/vod/popularcontents?%s' % (LogicNormal.wavve_config['base_url'], urllib.urlencode(param))
+            # url = '%s/vod/popularprograms?%s' % (LogicNormal.wavve_config['base_url'], py_urllib.urlencode(param))
+            url = '%s/vod/popularcontents?%s' % (LogicNormal.wavve_config['base_url'], py_urllib.urlencode(param))
             res = requests.get(url)
             data = res.json()
             
@@ -228,7 +227,7 @@ class LogicNormal(object):
             param['offset'] = '0'
             param['limit'] = '30'
             param['orderby'] = 'viewtime'
-            url = '%s/cf/vod/popularcontents?%s' % (LogicNormal.wavve_config['base_url'], urllib.urlencode(param))
+            url = '%s/cf/vod/popularcontents?%s' % (LogicNormal.wavve_config['base_url'], py_urllib.urlencode(param))
             res = requests.get(url)
             data = res.json()
             
@@ -261,7 +260,7 @@ class LogicNormal(object):
             # order : viewDay, viewWeek
             param['order'] = auto_tving_order
             default_param = 'pageNo=1&pageSize=30&adult=all&free=all&guest=all&scope=all&lastFrequency=y&personal=N&screenCode=CSSD0100&networkCode=CSND0900&osCode=CSOD0900&teleCode=CSCD0900&apiKey=1e7952d0917d6aab1f0293a063697610'
-            url = '%s/v2/media/episodes?%s&%s' % (LogicNormal.tving_config['base_url'], default_param, urllib.urlencode(param))
+            url = '%s/v2/media/episodes?%s&%s' % (LogicNormal.tving_config['base_url'], default_param, py_urllib.urlencode(param))
             res = requests.get(url)
             data = res.json()
 
@@ -286,7 +285,7 @@ class LogicNormal(object):
             elif type == 'movie':
                 param['positionKey'] = 'SMTV_MV_4K'
             default_param = 'screenCode=CSSD1200&networkCode=CSND0900&osCode=CSOD0900&teleCode=CSCD0900&apiKey=aeef9047f92b9dc4ebabc71fe4b124bf&pocType=APP_Z_TVING_1.0'
-            url = '%s/v2/operator/highlights?%s&%s' % (LogicNormal.tving_config['base_url'], default_param, urllib.urlencode(param))
+            url = '%s/v2/operator/highlights?%s&%s' % (LogicNormal.tving_config['base_url'], default_param, py_urllib.urlencode(param))
             res = requests.get(url)
             data = res.json()
 
@@ -432,7 +431,7 @@ class LogicNormal(object):
             # ent_keywords = {'월요일예능', '화요일예능', '수요일예능', '목요일예능', '금요일예능', '토요일예능', '일요일예능'}
             from framework.common.daum import headers, session
             from system.logic_site import SystemLogicSite
-            url = 'https://search.daum.net/search?w=tot&q=%s' % urllib.quote(keyword.encode('utf8'))
+            url = 'https://search.daum.net/search?w=tot&q=%s' % py_urllib.quote(keyword.encode('utf8'))
             res = session.get(url, headers=headers, cookies=SystemLogicSite.get_daum_cookies())
             html = res.content
             root = lxml.html.fromstring(html)

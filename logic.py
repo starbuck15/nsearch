@@ -58,7 +58,7 @@ class Logic(object):
             if ModelSetting.get('auto_start') == 'True':
                 Logic.scheduler_start()
 
-            from plugin import plugin_info
+            from .plugin import plugin_info
             Util.save_from_dict_to_json(plugin_info, os.path.join(os.path.dirname(__file__), 'info.json'))
         except Exception as e:
             logger.error('Exception:%s', e)
