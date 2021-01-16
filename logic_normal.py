@@ -747,8 +747,8 @@ class LogicNormal(object):
                 logger.error('show_library_path error(%s)', library_path)
                 return {'ret':'error', 'data':'{c} 라이브러리 경로를 확인하세요.'.format(c=ctype)}
 
-            newtitle = LogicNormal.change_text_for_use_filename(title):
-            target_path = os.path.join(library_path, newtitle + '.strm')
+            filename = LogicNormal.change_text_for_use_filename(title)
+            target_path = os.path.join(library_path, filename + '.strm')
             if os.path.isfile(target_path):
                 return {'ret':'error', 'data':'({p})파일이 이미 존재합니다.'.format(p=target_path)}
 
