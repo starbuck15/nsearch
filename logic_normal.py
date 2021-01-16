@@ -678,6 +678,8 @@ class LogicNormal(object):
         try:
             rule = ModelSetting.get('plex_path_rule')
             logger.debug('rule: %s', rule)
+            if rule == u'' or rule.find('|') == -1:
+                return filepath
             if rule is not None:
                 tmp = rule.split('|')
                 # /mnt/gdrive  P:  - f: /mnt/gdrive/OTT/TV
@@ -687,6 +689,7 @@ class LogicNormal(object):
                     ret = ret.replace('/', '\\')
                 else:                  # Windows -> Linux
                     ret = ret.replace('\\', '/')
+                # TODO: 동일유형 서버간 경로가 다른 경우도 고려해야하나?
                 return ret
 
         except Exception as e:
