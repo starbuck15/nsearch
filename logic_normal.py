@@ -682,14 +682,14 @@ class LogicNormal(object):
                 return filepath
             if rule is not None:
                 tmp = rule.split('|')
-                # /mnt/gdrive  P:  - f: /mnt/gdrive/OTT/TV
                 ret = filepath.replace(tmp[0], tmp[1])
-                # /mnt/gdrive  P:  - r: P:/OTT/TV
-                if filepath[0] == '/': # Linux   -> Windows
-                    ret = ret.replace('/', '\\')
-                else:                  # Windows -> Linux
-                    ret = ret.replace('\\', '/')
-                # TODO: 동일유형 서버간 경로가 다른 경우도 고려해야하나?
+
+                # SJVA-PMS의 플랫폼이 다른 경우
+                if tmp[0][0] != tmp[1][0]:
+                    if filepath[0] == '/': # Linux   -> Windows
+                        ret = ret.replace('/', '\\')
+                    else:                  # Windows -> Linux
+                        ret = ret.replace('\\', '/')
                 return ret
 
         except Exception as e:
