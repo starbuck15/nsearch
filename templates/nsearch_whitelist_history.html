@@ -106,11 +106,13 @@ function make_list(data) {
         tmp += m_button('wavve_program_basic_analyze', '분석', [{'key':'code', 'value':data[i].episode_id}]);
       }
       tmp += m_button('wavve_whitelist_program_btn', '추가', [{'key':'program', 'value':data[i].title}]);
+      tmp += m_button2('strm_create_btn', 'S', [{'key':'program', 'value':data[i].title}], 'info');
     } else {
       if (data[i].episode_id != '') {
         tmp += m_button('tving_program_basic_analyze', '분석', [{'key':'code', 'value':data[i].episode_id}]);
       }
       tmp += m_button('tving_whitelist_program_btn', '추가', [{'key':'program', 'value':data[i].title}]);
+      tmp += m_button2('strm_create_btn', 'S', [{'key':'program', 'value':data[i].title}], 'info');
     }
     tmp = m_button_group(tmp)
     str += m_col(2, tmp)
@@ -164,6 +166,29 @@ function add_condition_list(plugin, mode, value) {
         $.notify('<strong>Exception</strong>', {
           type: 'warning'
         });
+      }
+    }
+  });
+}
+
+$("body").on('click', '#strm_create_btn', function(e){
+  e.preventDefault();
+  var program = $(this).data('program');
+  strm_create('show', program)
+});
+
+function strm_create(ctype, value) {
+  $.ajax({
+    url: '/' + package_name + '/ajax/create_strm',
+    type: "POST",
+    cache: false,
+    data: {ctype:ctype, title:value},
+    dataType: "json",
+    success: function (data) {
+      if ( data.ret == 'success') {
+        $.notify('<strong>성공: '+data.data+'</strong>', {type: 'success'});
+      } else {
+        $.notify('<strong>실패: ' +data.data+ '</strong>', {type: 'warning'});
       }
     }
   });

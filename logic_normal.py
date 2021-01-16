@@ -731,9 +731,13 @@ class LogicNormal(object):
             if ctype == 'show': library_path = ModelSetting.get('show_library_path')
             else: library_path = ModelSetting.get('movie_library_path')
 
+            if not os.path.isdir(library_path):
+                logger.error('show_library_path error(%s)', library_path)
+                return {'ret':'error', 'data':'{c} 라이브러리 경로를 확인하세요.'.format(c=ctype)}
+
             target_path = os.path.join(library_path, title + '.strm')
             if os.path.isfile(target_path):
-                return {'ret':'error', 'data':'(%s)파일이 이미 존재합니다.' % title}
+                return {'ret':'error', 'data':'({p})파일이 이미 존재합니다.'.format(p=target_path)}
 
             plex_path = LogicNormal.get_plex_path(library_path)
             logger.debug('local_path(%s), plex_path(%s)', library_path, plex_path)
@@ -741,7 +745,7 @@ class LogicNormal(object):
             import plex
             section_id = plex.LogicNormal.get_section_id_by_filepath(plex_path)
             if section_id == -1:
-                return {'ret':'error', 'data':'(%s)파일이 이미 존재합니다.' % title}
+                return {'ret':'error', 'data':'Plex경로오류! \"{p}\" 경로를 확인해 주세요'.format(p=plex_path)}
 
             logger.debug('get_section_id: path(%s), section_id(%s)', library_path, section_id)
 
