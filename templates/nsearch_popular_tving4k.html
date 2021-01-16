@@ -118,6 +118,7 @@ function tving_make_album(ret){
     str += '<div class="btn-group">';
     str += '<button id="tving_program_basic_analyze" name="submit" type="button" class="btn btn-sm  btn-outline-secondary" data-code="'+data[i].content_code+'">분석</button>';
     str += '<button id="go_tving_vod" name="submit" type="button" class="btn btn-sm  btn-outline-secondary" data-code="'+data[i].content_code+'">티빙</button>';
+    str += '<button id="strm_create_btn" name="submit" type="button" class="btn btn-sm btn-outline-info" data-program="'+data[i].content.program.name.ko+'" data-ctype="show">S</button>';
     str += '</div>';
     str += '</div>';
     str += '</div>';
@@ -162,6 +163,7 @@ function tving_make_album2(ret){
     str += '<div class="btn-group">';
     str += ' <button id="tving_movie_analyze" name="submit" type="button" class="btn btn-sm  btn-outline-secondary" data-code="'+data[i].content_code+'">분석</button>';
     str += '<button id="go_tving_movie" name="submit" type="button" class="btn btn-sm  btn-outline-secondary" data-code="'+data[i].content_code+'">티빙</button>';
+    str += '<button id="strm_create_btn" name="submit" type="button" class="btn btn-sm btn-outline-info" data-program="'+data[i].content.movie.name.ko+'" data-ctype="movie">S</button>';
     str += '</div>';
     str += '</div>';
     str += '</div>';
@@ -275,5 +277,30 @@ function tving_make_list2(ret) {
   }
   document.getElementById("list2").innerHTML = str;
 }
+
+$("body").on('click', '#strm_create_btn', function(e){
+  e.preventDefault();
+  var program = $(this).data('program');
+  var ctype = $(this).data('ctype');
+  strm_create(ctype, program)
+});
+
+function strm_create(ctype, value) {
+  $.ajax({
+    url: '/' + package_name + '/ajax/create_strm',
+    type: "POST",
+    cache: false,
+    data: {ctype:ctype, title:value},
+    dataType: "json",
+    success: function (data) {
+      if ( data.ret == 'success') {
+        $.notify('<strong>성공: '+data.data+'</strong>', {type: 'success'});
+      } else {
+        $.notify('<strong>실패: ' +data.data+ '</strong>', {type: 'warning'});
+      }
+    }
+  });
+}
+
 </script>    
 {% endblock %}

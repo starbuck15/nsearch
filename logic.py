@@ -35,7 +35,13 @@ class Logic(object):
         'auto_tving_whitelist_limit' : '20',
         'auto_tving_order' : 'viewDay',
         'auto_priority' : '0',
-        'auto_delete' : 'False'
+        'auto_delete' : 'False',
+        
+        # added by orial
+        'show_library_path' : '/mnt/gdrive/OTT/TV',
+        'movie_library_path' : '/mnt/gdrive/OTT/MOVIE',
+        'plex_scan_delay' : '60',
+        'plex_path_rule' : '',
     }
 
     @staticmethod

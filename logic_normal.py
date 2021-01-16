@@ -5,6 +5,8 @@ import os
 import datetime
 import traceback
 from datetime import datetime
+import threading
+import time
 
 # third-party
 import json
@@ -12,7 +14,7 @@ import requests
 import lxml.html
 
 # sjva 공용
-from framework import app, db, scheduler, path_app_root, celery
+from framework import app, db, scheduler, path_app_root, celery, socketio
 from framework.job import Job
 from framework.util import Util
 from framework import py_urllib
@@ -434,6 +436,7 @@ class LogicNormal(object):
             url = 'https://search.daum.net/search?w=tot&q=%s' % py_urllib.quote(keyword.encode('utf8'))
             res = session.get(url, headers=headers, cookies=SystemLogicSite.get_daum_cookies())
             html = res.content
+            #logger.debug(html)
             root = lxml.html.fromstring(html)
             list_program = root.xpath('//ol[@class="list_program item_cont"]/li')
 
@@ -669,3 +672,90 @@ class LogicNormal(object):
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
             return False
+
+    @staticmethod
+    def get_plex_path(filepath):
+        try:
+            rule = ModelSetting.get('plex_path_rule')
+            logger.debug('rule: %s', rule)
+            if rule is not None:
+                tmp = rule.split('|')
+                # /mnt/gdrive  P:  - f: /mnt/gdrive/OTT/TV
+                ret = filepath.replace(tmp[0], tmp[1])
+                # /mnt/gdrive  P:  - r: P:/OTT/TV
+                if filepath[0] == '/': # Linux   -> Windows
+                    ret = ret.replace('/', '\\')
+                else:                  # Windows -> Linux
+                    ret = ret.replace('\\', '/')
+                return ret
+
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
+    @staticmethod
+    def do_strm_proc(target_path, section_id):
+        logger.debug('Thread started:do_strm_proc()')
+        # STRM 파일 생성
+        with open(target_path, 'w') as f: f.write('1')
+
+        logger.debug('strm 파일 생성완료(%s)', target_path)
+        data ={'type':'success', 'msg':'파일생성완료({p}): 스캔명령전송대기중({t}s)'.format(p=target_path, t=ModelSetting.get('plex_scan_delay'))}
+        socketio.emit("notify", data, namespace='/framework', broadcate=True)
+
+        while True:
+            logger.debug('스캔명령 전송 대기...')
+            time.sleep(ModelSetting.get_int('plex_scan_delay'))
+            if os.path.isfile(target_path):
+                break
+
+        from plex.model import ModelSetting as PlexModelSetting
+        server = PlexModelSetting.get('server_url')
+        token = PlexModelSetting.get('server_token')
+        logger.debug('스캔명령 전송: server(%s), token(%s), section_id(%s)', server, token, section_id)
+        url = '{server}/library/sections/{section_id}/refresh?X-Plex-Token={token}'.format(server=server, section_id=section_id, token=token)
+
+        res = requests.get(url)
+        if res.status_code == 200:
+            logger.debug('스캔명령 전송 완료: %s', target_path)
+            data = {'type':'success', 'msg':'아이템({p}) 추가/스캔요청 완료.'.format(p=target_path)}
+        else:
+            logger.error('스캔명령 전송 실패: %s', target_path)
+            data = {'type':'warning', 'msg':'스캔명령 전송 실패! 로그를 확인해주세요'}
+        socketio.emit("notify", data, namespace='/framework', broadcate=True)
+
+    @staticmethod
+    def create_strm(ctype, title):
+        try:
+            logger.debug('strm 생성 요청하기(유형:%s, 제목:%s)', ctype, title)
+            if ctype == 'show': library_path = ModelSetting.get('show_library_path')
+            else: library_path = ModelSetting.get('movie_library_path')
+
+            target_path = os.path.join(library_path, title + '.strm')
+            if os.path.isfile(target_path):
+                return {'ret':'error', 'data':'(%s)파일이 이미 존재합니다.' % title}
+
+            plex_path = LogicNormal.get_plex_path(library_path)
+            logger.debug('local_path(%s), plex_path(%s)', library_path, plex_path)
+
+            import plex
+            section_id = plex.LogicNormal.get_section_id_by_filepath(plex_path)
+            if section_id == -1:
+                return {'ret':'error', 'data':'(%s)파일이 이미 존재합니다.' % title}
+
+            logger.debug('get_section_id: path(%s), section_id(%s)', library_path, section_id)
+
+            def func():
+                time.sleep(1)
+                LogicNormal.do_strm_proc(target_path, section_id)
+
+            thread = threading.Thread(target=func, args=())
+            thread.setDaemon(True)
+            thread.start()
+
+            logger.debug('%s 추가 요청 완료', title)
+            return {'ret':'success', 'data':'{title} 추가요청 완료'.format(title=title)}
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+            return {'ret':'error', 'data': '에러발생, 로그를 확인해주세요'}

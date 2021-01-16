@@ -13,7 +13,11 @@
 <div>
   <form id="setting">
     {{ macros.setting_select('list_method', '출력 방식', [['album', '앨범형'], ['list', '리스트형']], col='3', value=arg['list_method']) }}
-    {{ macros.setting_button([['setting_save_btn', '저장']]) }}
+    {{ macros.setting_input_text('show_library_path', 'TV 라이브러리 경로', value=arg['show_library_path'], col='3', desc=['TV용 strm파일을 생성할 라이브러리 경로']) }}
+    {{ macros.setting_input_text('movie_library_path', '영화 라이브러리 경로', value=arg['movie_library_path'], col='3', desc=['영화용 strm파일을 생성할 라이브러리 경로']) }}
+    {{ macros.setting_input_text('plex_scan_delay', '스캔명령 지연시간(초)', value=arg['plex_scan_delay'], col='3', desc=['strm파일 생성후 스캔명령 전송 대기 시간(초단위)']) }}
+    {{ macros.setting_input_text('plex_path_rule', 'PLEX 경로변환규칙', value=arg['plex_path_rule'], desc=['SJVA에서 구글드라이브 경로와 Plex서버상의 경로가 다를경우 사용', '형식: 로컬마운트경로|Plex 상의 경로', '예: /mnt/gdrive|P: (구글드라이브 루트가 Plex 서버에서 P:으로 매칭)']) }}
+    {{ macros.setting_button([['global_setting_save_btn', '저장']]) }}
   </form>
 </div>
 

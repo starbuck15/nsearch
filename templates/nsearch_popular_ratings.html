@@ -123,7 +123,6 @@ $("body").on('click', '#tving_except_program_btn', function(e){
   var program = $(this).data('program');
   add_condition_list(tving_plugin, 'except_program', $(this).data('program'))
 });
-
 function make_ratings_album(data, genre){
 	str = '';
 	str += '<hr>';
@@ -152,6 +151,7 @@ function make_ratings_album(data, genre){
         } else {
           str += '<button id="wavve_whitelist_program_btn" name="submit" type="button" class="btn btn-sm btn-outline-secondary" data-program="'+data[i].title+'">W</button>';
         }
+        str += '<button id="strm_create_btn" name="submit" type="button" class="btn btn-sm btn-outline-info" data-program="'+data[i].title+'">S</button>';
         str += '</div>';
         str += '<small class="text-muted"></small>';
         str += '</div>';
@@ -195,6 +195,7 @@ function make_ratings_list(data, genre){
         } else {
           str += '<button id="wavve_whitelist_program_btn" name="submit" type="button" class="btn btn-sm btn-outline-success" data-program="'+data[i].title+'">Wavve 포함</button>';
         }
+        str += '<button id="strm_create_btn" name="submit" type="button" class="btn btn-sm btn-outline-info" data-program="'+data[i].title+'">S</button>';
         str += '</div>';
         str += '</div>';
         str += '</div>';
@@ -228,6 +229,29 @@ function add_condition_list(plugin, mode, value) {
         $.notify('<strong>Exception</strong>', {
           type: 'warning'
         });
+      }
+    }
+  });
+}
+
+$("body").on('click', '#strm_create_btn', function(e){
+  e.preventDefault();
+  var program = $(this).data('program');
+  strm_create('show', program)
+});
+
+function strm_create(ctype, value) {
+  $.ajax({
+    url: '/' + package_name + '/ajax/create_strm',
+    type: "POST", 
+    cache: false,
+    data: {ctype:ctype, title:value},
+    dataType: "json",
+    success: function (data) {
+      if ( data.ret == 'success') {
+        $.notify('<strong>성공: '+data.data+'</strong>', {type: 'success'});
+      } else {
+        $.notify('<strong>실패: ' +data.data+ '</strong>', {type: 'warning'});
       }
     }
   });

@@ -292,6 +292,18 @@ def ajax(sub):
                 logger.error(traceback.format_exc())
                 return jsonify('fail')
 
+        elif sub == 'create_strm':
+            try:
+                ctype = request.form['ctype']
+                title = request.form['title']
+                ret = LogicNormal.create_strm(ctype, title)
+                return jsonify(ret)
+            except Exception as e:
+                logger.error('Exception:%s', e)
+                logger.error(traceback.format_exc())
+                ret = {'ret':False, 'data':'Exception! 로그를 확인하세요'}
+                return jsonify(ret)
+
     except Exception as e: 
         logger.error('Exception:%s', e)
         logger.error(traceback.format_exc())
