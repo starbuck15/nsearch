@@ -697,6 +697,15 @@ class LogicNormal(object):
             logger.error(traceback.format_exc())
 
     @staticmethod
+    def change_text_for_use_filename(text):
+        try:
+            import re
+            return re.sub('[\\/:*?\"<>|]', '', text).strip()
+        except Exception as exception: 
+            logger.error('Exception:%s', exception)
+            logger.error(traceback.format_exc())
+
+    @staticmethod
     def do_strm_proc(target_path, section_id):
         logger.debug('Thread started:do_strm_proc()')
         # STRM 파일 생성
@@ -738,7 +747,8 @@ class LogicNormal(object):
                 logger.error('show_library_path error(%s)', library_path)
                 return {'ret':'error', 'data':'{c} 라이브러리 경로를 확인하세요.'.format(c=ctype)}
 
-            target_path = os.path.join(library_path, title + '.strm')
+            newtitle = LogicNormal.change_text_for_use_filename(title):
+            target_path = os.path.join(library_path, newtitle + '.strm')
             if os.path.isfile(target_path):
                 return {'ret':'error', 'data':'({p})파일이 이미 존재합니다.'.format(p=target_path)}
 
@@ -760,7 +770,7 @@ class LogicNormal(object):
             thread.setDaemon(True)
             thread.start()
 
-            logger.debug('%s 추가 요청 완료', title)
+            logger.debug('%s 추가 요청 완료', target_path)
             return {'ret':'success', 'data':'{title} 추가요청 완료'.format(title=title)}
         except Exception as e:
             logger.error('Exception:%s', e)
