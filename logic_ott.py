@@ -262,7 +262,7 @@ class LogicOtt(object):
         try:
             import re
             wd = [u'월', u'화', u'수', u'목', u'금', u'토', u'일']
-            rx = ur'(?P<wday>.+)\s(?P<ampm>오후|오전)\s(?P<hour>\d{1,2})[:](?P<min>\d{1,2})'
+            rx = r'(?P<wday>.+)\s(?P<ampm>오후|오전)\s(?P<hour>\d{1,2})[:](?P<min>\d{1,2})'
 
             ret = {}
             wdays = []
