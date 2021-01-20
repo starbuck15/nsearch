@@ -24,6 +24,7 @@ logger = get_logger(package_name)
 from .model import ModelSetting, ModelAutoHistory
 from .logic import Logic
 from .logic_normal import LogicNormal
+from .logic_ott import LogicOtt
 
 #########################################################
 
@@ -36,9 +37,14 @@ blueprint = Blueprint(package_name, package_name, url_prefix='/%s' %  package_na
 menu = {
     'main' : [package_name, u'검색'],
     'sub' : [
-        ['search', u'검색'], ['popular', u'인기 프로그램'], ['whitelist', u'화이트리스트'], ['log', u'로그']
+        ['search', u'검색'], ['popular', u'인기 프로그램'], ['whitelist', u'화이트리스트'], ['plexott', 'PlexOTT'],['log', u'로그']
     ],
     'category' : 'vod',
+    'sub2': {
+        'plexott': [
+            ['setting', u'설정'], ['show_list',u'TV목록'],['movie_list', u'영화목록']
+        ]
+     }
 }
 
 plugin_info = {
@@ -65,7 +71,8 @@ def plugin_unload():
 #########################################################
 @blueprint.route('/')
 def home():
-    return redirect('/%s/search' % package_name)
+    return redirect('/%s/plexott' % package_name)
+    #return redirect('/%s/search' % package_name)
 
 @blueprint.route('/<sub>')
 @login_required
@@ -79,6 +86,8 @@ def detail(sub):
             return redirect('/%s/%s/ratings' % (package_name, sub))
         elif sub == 'whitelist':
             return redirect('/%s/%s/history' % (package_name, sub))
+        elif sub == 'plexott':
+            return redirect('/%s/%s/show_list' % (package_name, sub))
         elif sub == 'log':
             return render_template('log.html', package=package_name)
         return render_template('sample.html', title='%s - %s' % (package_name, sub))
@@ -133,6 +142,13 @@ def second_menu(sub, sub2):
                 arg = {}
                 arg['package_name']  = package_name
                 return render_template('%s_%s_%s.html' % (package_name, sub, sub2), arg=arg)
+        elif sub == 'plexott':
+            arg = ModelSetting.to_dict()
+            arg['package_name']  = package_name
+            if sub2 == 'setting':
+                arg['ott_show_scheduler'] = str(scheduler.is_include('ott_show_scheduler'))
+                arg['is_running'] = str(scheduler.is_running('ott_show_scheduler'))
+            return render_template('%s_%s_%s.html' % (package_name, sub, sub2), arg=arg)
         elif sub == 'log':
             return render_template('log.html', package=package_name)
         return render_template('sample.html', title='%s - %s' % (package_name, sub))
@@ -296,17 +312,54 @@ def ajax(sub):
             try:
                 ctype = request.form['ctype']
                 title = request.form['title']
-                ret = LogicNormal.create_strm(ctype, title)
+                ret = LogicOtt.create_strm(ctype, title)
                 return jsonify(ret)
             except Exception as e:
                 logger.error('Exception:%s', e)
                 logger.error(traceback.format_exc())
                 ret = {'ret':False, 'data':'Exception! 로그를 확인하세요'}
                 return jsonify(ret)
+        elif sub == 'plexott_list':
+            try:
+                ctype = request.form['ctype']
+                if ctype == 'show':
+                    ret = LogicOtt.plexott_show_list(request)
+                else: #movie
+                    ret = LogicOtt.plexott_movie_list(request)
+                return jsonify(ret)
+            except Exception as e:
+                logger.error('Exception:%s', e)
+                logger.error(traceback.format_exc())
+                ret = {'ret':'error', 'data':'Exception! 로그를 확인하세요'}
+                return jsonify(ret)
+        elif sub == 'meta_refresh':
+            try:
+                ctype = request.form['ctype']
+                if ctype == 'show':
+                    ret = LogicOtt.show_metadata_refresh(request)
+                else: #movie
+                    ret = LogicOtt.plexott_movie_list(request)
+                return jsonify(ret)
+            except Exception as e:
+                logger.error('Exception:%s', e)
+                logger.error(traceback.format_exc())
+                ret = {'ret':'error', 'data':'Exception! 로그를 확인하세요'}
+                return jsonify(ret)
+        elif sub == 'file_remove':
+            try:
+                fpath = request.form['fpath']
+                ret = LogicOtt.remove_file(fpath)
+                return jsonify(ret)
+            except Exception as e:
+                logger.error('Exception:%s', e)
+                logger.error(traceback.format_exc())
+                ret = {'ret':'error', 'data':'Exception! 로그를 확인하세요'}
+                return jsonify(ret)
 
     except Exception as e: 
         logger.error('Exception:%s', e)
         logger.error(traceback.format_exc())
+
 
 #########################################################
 # API

@@ -17,6 +17,7 @@ from framework.util import Util
 from .plugin import logger, package_name
 from .model import ModelSetting
 from .logic_normal import LogicNormal
+from .logic_ott import LogicOtt
 
 #########################################################
 
@@ -42,6 +43,11 @@ class Logic(object):
         'movie_library_path' : '/mnt/gdrive/OTT/MOVIE',
         'plex_scan_delay' : '60',
         'plex_path_rule' : '',
+        'ott_show_scheduler_auto_start' : 'False', 
+        'ott_show_scheduler_interval' : '10', 
+        'meta_update_delay' : '60',
+        'meta_update_interval' : '1',
+        'meta_update_notify' : 'False',
     }
 
     @staticmethod
@@ -64,8 +70,13 @@ class Logic(object):
             if ModelSetting.get('auto_start') == 'True':
                 Logic.scheduler_start()
 
+            if ModelSetting.get('ott_show_scheduler_auto_start') == 'True':
+                Logic.ott_show_metadata_scheduler_start()
+
             from .plugin import plugin_info
             Util.save_from_dict_to_json(plugin_info, os.path.join(os.path.dirname(__file__), 'info.json'))
+            # 플러그인 로드시 데이터로드
+            LogicOtt.load_show_items()
         except Exception as e:
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
@@ -87,6 +98,17 @@ class Logic(object):
         except Exception as e:
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
+
+    @staticmethod
+    def ott_show_metadata_scheduler_start():
+        try:
+            interval = ModelSetting.get('ott_show_scheduler_interval')
+            job = Job(package_name, 'ott_show_scheduler', interval, Logic.ott_show_scheduler_function, u"OTT TV 프로그램 메타업데이터", True)
+            scheduler.add_job_instance(job)
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
 
     @staticmethod
     def scheduler_stop():
@@ -124,6 +146,14 @@ class Logic(object):
     def scheduler_function():
         try:
             LogicNormal.scheduler_function()
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
+    @staticmethod
+    def ott_show_scheduler_function():
+        try:
+            LogicOtt.ott_show_scheduler_function()
         except Exception as e:
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())

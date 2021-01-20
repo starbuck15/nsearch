@@ -106,13 +106,13 @@ function make_list(data) {
         tmp += m_button('wavve_program_basic_analyze', '분석', [{'key':'code', 'value':data[i].episode_id}]);
       }
       tmp += m_button('wavve_whitelist_program_btn', '추가', [{'key':'program', 'value':data[i].title}]);
-      tmp += m_button2('strm_create_btn', 'S', [{'key':'program', 'value':data[i].title}], 'info');
+      tmp += m_button2('strm_create_btn', 'S', [{'key':'program', 'value':data[i].title}, {'key':'provider', 'value':'W'}], 'info');
     } else {
       if (data[i].episode_id != '') {
         tmp += m_button('tving_program_basic_analyze', '분석', [{'key':'code', 'value':data[i].episode_id}]);
       }
       tmp += m_button('tving_whitelist_program_btn', '추가', [{'key':'program', 'value':data[i].title}]);
-      tmp += m_button2('strm_create_btn', 'S', [{'key':'program', 'value':data[i].title}], 'info');
+      tmp += m_button2('strm_create_btn', 'S', [{'key':'program', 'value':data[i].title}, {'key':'provider', 'value':'T'}], 'info');
     }
     tmp = m_button_group(tmp)
     str += m_col(2, tmp)
