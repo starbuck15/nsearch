@@ -70,13 +70,14 @@ class Logic(object):
             if ModelSetting.get('auto_start') == 'True':
                 Logic.scheduler_start()
 
+            # 플러그인 로드시 데이터로드
+            LogicOtt.load_show_items()
+
             if ModelSetting.get('ott_show_scheduler_auto_start') == 'True':
                 Logic.ott_show_metadata_scheduler_start()
 
             from .plugin import plugin_info
             Util.save_from_dict_to_json(plugin_info, os.path.join(os.path.dirname(__file__), 'info.json'))
-            # 플러그인 로드시 데이터로드
-            LogicOtt.load_show_items()
         except Exception as e:
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())

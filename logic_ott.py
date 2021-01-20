@@ -50,6 +50,8 @@ class LogicOtt(object):
             for item in LogicOtt.OttShowList:
                 if item['status'] != 1: continue # 방영중이 아닌 경우 제외
                 if 'broadcast_info' not in item.keys(): continue # 방영정보가 없는 경우 제외
+                if item['broadcast_info'] is None: continue
+                if 'wdays' not in item['broadcast_info'].keys(): continue
 
                 wdays = item['broadcast_info']['wdays']
                 broadcast_time = (item['broadcast_info']['hour'] * 100) + item['broadcast_info']['min']
@@ -267,7 +269,9 @@ class LogicOtt(object):
             ret = {}
             wdays = []
 
-            match = re.compile(rx).search(broadcast_str)
+            logger.debug('broadcast_str: %s', broadcast_str)
+            match = re.compile(rx).search(broadcast_str.encode('utf-8'))
+            logger.debug(match)
             if match:
                 wday = match.group('wday')
                 tm_hour = int(match.group('hour'))
@@ -464,8 +468,11 @@ class LogicOtt(object):
             wday = wds[wtype]
             for item in glist:
                 # 방영중이 아닌경우 스킵
-                if item['status'] != 1:
-                    continue
+                #logger.debug(item)
+                if item['status'] != 1: continue
+                if item['broadcast_info'] is None: continue
+                if 'broadcast_info' not in item.keys(): continue
+
                 # 비대상 요일 처리
                 #logger.debug('wday:%s,wdays:%s', wday, ",".join(item['broadcast_info']['wdays']))
                 if wday in item['broadcast_info']['wdays']:
