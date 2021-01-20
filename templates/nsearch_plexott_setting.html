@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!--
+<ul class="nav nav-pills bg-light shadow text-dark" >
+  <li class="nav-item"><a class="nav-link active" href="/nsearch/plexott/setting">설정</a></li>
+  <li class="nav-item"><a class="nav-link" href="/nsearch/plexott/list">목록</a></li>
+</ul>
+<div class="d-inline-block"></div>
+-->
+
+<div>
+  {{ macros.setting_global_scheduler_button(arg['ott_show_scheduler'], arg['is_running']) }}
+  <form id="setting">
+    {{ macros.setting_input_int('ott_show_scheduler_interval', '메타갱신 스케쥴링 실행 정보', value=arg['ott_show_scheduler_interval'], desc=['Inverval(minute 단위)이나 Cron 설정']) }}
+    {{ macros.setting_checkbox('ott_show_scheduler_auto_start', '시작시 자동실행', value=arg['ott_show_scheduler_auto_start'], desc='On : 시작시 자동으로 스케쥴러에 등록됩니다.') }}
+    {{ macros.setting_input_int('meta_update_delay', '메타갱신 지연시간', value=arg['meta_update_delay'], desc=['스케쥴링시 메타갱신 기준 지연시간(분)','방송시각 + 지연시간 후 메타갱신']) }}
+    {{ macros.setting_input_int('meta_update_interval', '메타갱신 SleepTime', value=arg['meta_update_interval'], desc=['메타갱신 휴식시간(초)','여러파일 메타갱신시 파일처리당 휴식시간']) }}
+    {{ macros.setting_checkbox('meta_update_notify', '메타갱신개별알림', value=arg['meta_update_notify'], desc='On : 메타갱신시 파일별 알림, Off: 메타갱신 완료시 1번만 알림') }}
+    {{ macros.setting_input_text('show_library_path', 'TV 라이브러리 경로', value=arg['show_library_path'], desc=['TV용 strm파일을 생성할 라이브러리 경로']) }}
+    {{ macros.setting_input_text('movie_library_path', '영화 라이브러리 경로', value=arg['movie_library_path'], desc=['영화용 strm파일을 생성할 라이브러리 경로']) }}
+    {{ macros.setting_input_text('plex_scan_delay', '스캔명령 지연시간(초)', value=arg['plex_scan_delay'], col='3', desc=['strm파일 생성후 스캔명령 전송 대기 시간(초단위)']) }}
+    {{ macros.setting_input_text('plex_path_rule', 'PLEX 경로변환규칙', value=arg['plex_path_rule'], desc=['SJVA에서 구글드라이브 경로와 Plex서버상의 경로가 다를경우 사용', '형식: 로컬마운트경로|Plex 상의 경로', '예: /mnt/gdrive|P: (구글드라이브 루트가 Plex 서버에서 P:으로 매칭)']) }}
+    {{ macros.setting_button([['global_setting_save_btn', '저장']]) }}
+  </form>
+</div>
+
+
+<script type="text/javascript">
+var package_name = "{{arg['package_name'] }}";
+
+$(document).ready(function(){
+});
+
+</script>    
+{% endblock %}
