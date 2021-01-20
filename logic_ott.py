@@ -70,7 +70,7 @@ class LogicOtt(object):
                             target_list.append(item)
 
             if len(target_list) > 0:
-                do_metadata_refresh(target_list)
+                LogicOtt.do_metadata_refresh(target_list)
 
             logger.debug('ott_show scheduler_function end..')
 
@@ -271,7 +271,7 @@ class LogicOtt(object):
 
             logger.debug('broadcast_str: %s', broadcast_str)
             match = re.compile(rx).search(broadcast_str.encode('utf-8'))
-            logger.debug(match)
+            #logger.debug(match)
             if match:
                 wday = match.group('wday')
                 tm_hour = int(match.group('hour'))
@@ -365,8 +365,10 @@ class LogicOtt(object):
             from datetime import datetime as dt
 
             library_path = ModelSetting.get('show_library_path')
-            if not os.path.isdir(library_path):
+            # SJVA에서 GDrive를 마운트 하는 경우 대응
+            while not os.path.isdir(library_path):
                 logger.error('failed to load show items')
+                time.sleep(0.5)
 
             for fname in os.listdir(library_path):
                 file_path = os.path.join(library_path, fname)

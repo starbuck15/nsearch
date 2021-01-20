@@ -1,13 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
 
-<!--
-<ul class="nav nav-pills bg-light shadow text-dark" >
-  <li class="nav-item"><a class="nav-link active" href="/nsearch/plexott/setting">설정</a></li>
-  <li class="nav-item"><a class="nav-link" href="/nsearch/plexott/list">목록</a></li>
-</ul>
-<div class="d-inline-block"></div>
--->
 
 <div>
   <form id="form_search" class="form-inline" style="text-align:left">
@@ -306,11 +299,6 @@ function make_album(data) {
   document.getElementById("list_div").innerHTML = str;
 }
 
-$("body").on('click', '#all_btn', function(e){
-  e.preventDefault();
-  wtype='all';
-  request_search('1');
-});
 $("body").on('click', '#all_btn', function(e){
   e.preventDefault();
   wtype='all';
