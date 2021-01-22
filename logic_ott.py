@@ -669,11 +669,15 @@ class LogicOtt(object):
 
                 logger.debug('Daum 정보 조회 및 갱신: %s', item['title'])
                 daum_info = LogicOtt.get_daum_tv_info(item['title'])
+                if daum_info is None:
+                    logger.error('Daum 정보 조회실패: %s', item['title'])
+                    continue
+
                 # 방영상태가 바뀐 경우
                 if item['status'] != daum_info['status']:
                     logger.debug('방영정보가 변경되어 파일갱신: %s', item['file_path'])
                     LogicOtt.save_dauminfo_to_file(item['file_path'], daum_info)
-                    MemItem = LogicOtt.OttShowList.index(item)
+                    MemItem = LogicOtt.OttShowList[LogicOtt.OttShowList.index(item)]
                     MemItem['status'] = daum_info['status']
 
                 if ModelSetting.get_bool('meta_update_notify'):
