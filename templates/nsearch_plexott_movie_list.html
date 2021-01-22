@@ -299,10 +299,15 @@ $("body").on('click', '#movie_search_btn', function(e) {
 	str += m_col(3, tmp);
         tmp = '<strong>' + data[i].title + '</strong><br>';
         tmp += '개봉: ' + data[i].year + '<br>';
-        tmp += '제공: ' + data[i].type + '<br>';
+        tmp += '사이트: ' + data[i].vod_site + '<br>';
+
+        //tmp = '<strong>' + data[i].title + '</strong><br>(' +data[i].originaltitle+ ')';
+        //tmp += '개봉/사이트: ' + data[i].year + '/' + data[i].vod_site + '<br>';
+        //tmp += '감독: ' + data[i].extra_info.director + '<br>';
+        //tmp += '출연: ' + data[i].extra_info.actor + '<br>';
 	str += m_col(5, tmp);
 
-        tmp = m_button2('strm_create_btn', '추가', [{'key':'code', 'value':data[i].code}], 'info');
+        tmp = m_button2('strm_create_btn', '추가', [{'key':'title', 'value':data[i].title}], 'info');
         tmp += m_button('movie_detail_btn', '정보', [{'key':'code', 'value':data[i].code}]);
         btn_str = m_button_group(tmp);
 	str += m_col(2, btn_str);

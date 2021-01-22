@@ -7,6 +7,7 @@ import traceback
 from datetime import datetime, timedelta
 import threading
 import time
+import re
 
 # third-party
 import json
@@ -225,7 +226,7 @@ class LogicOtt(object):
     def change_text_for_use_filename(text):
         try:
             import re
-            return re.sub('[\\/:*?\"<>|]', '', text).strip()
+            return re.sub('[\\/:*?\"<>|\[\]]', '', text).strip()
         except Exception as exception:
             logger.error('Exception:%s', exception)
             logger.error(traceback.format_exc())
@@ -239,7 +240,11 @@ class LogicOtt(object):
         if ctype == 'show': # TV show ott 
             daum_info = LogicOtt.get_daum_tv_info(title)
             if daum_info is None:
-                logger.debug('메타데이터 조회 실패(%s)', title)
+                logger.warning('다음 메타데이터 조회 실패(%s), OTT조회 시도', title)
+                daum_info = LogicOtt.get_ott_show_info(title)
+
+            if daum_info is None:
+                logger.warning('OTT 메타데이터 조회 실패(%s)', title)
                 data ={'type':'warning', 'msg':'메타데이터 조회 실패({t})'.format(t=title)}
                 socketio.emit("notify", data, namespace='/framework', broadcate=True)
                 return
@@ -345,7 +350,7 @@ class LogicOtt(object):
     def save_dauminfo_to_file(fpath, daum_info):
         try:
             from datetime import datetime as dt
-            with open(fpath, 'w') as f:
+            with open(fpath.encode('utf-8'), 'w') as f:
                 json.dump(daum_info, f, indent=2)
 
             stat = os.stat(fpath)
@@ -376,6 +381,9 @@ class LogicOtt(object):
         try:
             with open(fpath, 'r') as f:
                 daum_info = json.load(f)
+            if type(daum_info) != type({}): return None
+            for k in ['status', 'genre', 'code', 'poster_url']:
+                if k not in daum_info: return None
             return daum_info
         except Exception as exception:
             logger.error('Exception:%s', exception)
@@ -384,7 +392,6 @@ class LogicOtt(object):
     @staticmethod
     def parse_broadcast_info(broadcast_str):
         try:
-            import re
             wd = [u'월', u'화', u'수', u'목', u'금', u'토', u'일']
             rx = r'(?P<wday>.+)\s(?P<ampm>오후|오전)\s(?P<hour>\d{1,2})[:](?P<min>\d{1,2})'
 
@@ -427,8 +434,12 @@ class LogicOtt(object):
             if fpath is None:
                 ret = SiteDaumTv.search(title)
                 if ret['ret'] != 'success':
-                    logger.error('failed to get daum metadata info(%s)', title)
-                    return None
+                    logger.error('failed to get daum info(%s), try to get ott info', title)
+                    info = LogicOtt.get_ott_show_info(title)
+                    if info is None:
+                        logger.error('failed to get ott show info(%s)', title)
+                        return None
+                    return info
                 info = ret['data']
 
                 daum_info['code'] = info['code'] if 'code' in info.keys() else ''
@@ -446,12 +457,17 @@ class LogicOtt(object):
             else:
                 daum_info = LogicOtt.load_dauminfo_from_file(fpath)
                 # 파일이 이전파일인 경우 갱신
-                if 'code' not in daum_info.keys():
+                if daum_info is None:
                     ret = SiteDaumTv.search(title)
                     if ret['ret'] != 'success':
-                        logger.error('failed to get daum metadata info(%s)', title)
-                        return None
-                    info = ret['data']
+                        logger.error('failed to get daum info(%s), try to get ott info', title)
+                        info = LogicOtt.get_ott_show_info(title)
+                        if info is None:
+                            logger.error('failed to get ott show info(%s)', title)
+                            return None
+                        LogicOtt.save_dauminfo_to_file(fpath, info)
+                        return info
+                    else: info = ret['data']
 
                     daum_info['code'] = info['code'] if 'code' in info.keys() else ''
                     # 1: 방송중, 2: 종영, 0: 방송예정
@@ -469,7 +485,6 @@ class LogicOtt(object):
                         daum_info['broadcast_info'] = LogicOtt.parse_broadcast_info(tmpinfo)
                         logger.debug(daum_info['broadcast_info'])
 
-
                     LogicOtt.save_dauminfo_to_file(fpath, daum_info)
 
             return daum_info
@@ -478,6 +493,40 @@ class LogicOtt(object):
             logger.error('Exception:%s', exception)
             logger.error(traceback.format_exc())
             return None
+
+    @staticmethod
+    def get_ott_show_info(title):
+        try:
+            info = {}
+            site_list = ['tving', 'wavve']
+            from metadata.logic_ott_show import LogicOttShow
+            LogicOttShow = LogicOttShow(LogicOttShow)
+
+            r = LogicOttShow.search(title)
+            if len(r) == 0: return None
+
+            code = None
+            for site in site_list: 
+                if site in r: code = r[site][0]['code']; break;
+            if not code: return None
+
+            r = LogicOttShow.info(code)
+            if not r: return None
+
+            info['code'] = r['code']
+            info['status'] = r['status']
+            score = 0
+            for p in r['thumb']:
+                if p['score'] > score and p['aspect'] == 'poster':
+                    score = p['score']
+                    info['poster_url'] = p['value']
+                    if score == 100: break
+            info['genre'] = r['genre'][0]
+            return info
+
+        except Exception as exception:
+            logger.error('Exception:%s', exception)
+            logger.error(traceback.format_exc())
 
     @staticmethod
     def load_show_items():
@@ -562,6 +611,8 @@ class LogicOtt(object):
                     glist.append(item)
                 elif gtype == 'dra' or gtype == 'ent':
                     if item['genre'] == grs[gtype]:
+                        glist.append(item)
+                    elif gtype == 'dra' and item['genre'].find(u'드라마') != -1:
                         glist.append(item)
                 else:
                     if item['genre'] != u'드라마' and item['genre'] != u'예능':
@@ -812,16 +863,30 @@ class LogicOtt(object):
         try:
             tlist = []
             import framework.tving.api as Tving
+            from metadata.logic_movie import LogicMovie
+            LogicMovie = LogicMovie(LogicMovie)
+
             l = Tving.search_tv(keyword)
             if not l: return []
             for r in l:
                 m = dict()
-                m['type'] = 'tving'
+                """
+                info = dict()
+                # for tving [블라블라] 제목 -> 제목
+                title = re.sub('\[.+\]', '', r['mast_nm']).strip()
+                year = int(r['broad_dt'][:4]) if 'broad_dt' in r else None
+
+                info = LogicMovie.search(title, year)[0]
+                info['vod_site'] = 'tving'
+                """
+                m['vod_site'] = 'tving'
                 m['title'] = r['mast_nm']
                 m['code'] = r['mast_cd']
                 m['year'] = r['broad_dt'][:4]
                 m['poster_url'] = 'https://image.tving.com' + r['web_url']
+
                 tlist.append(m)
+                #tlist.append(info)
 
             return tlist
 
@@ -834,19 +899,33 @@ class LogicOtt(object):
         try:
             wlist = []
             import framework.wavve.api as Wavve
+            from metadata.logic_movie import LogicMovie
+            LogicMovie = LogicMovie(LogicMovie)
             l = Wavve.search_movie(keyword)['list']
             # TODO: 에러처리
             if len(l) == 0: return []
             for i in l:
                 movieid = i['movieid']
                 r = Wavve.movie_contents_movieid(movieid)
+                """
+                info = dict()
+                title = re.sub('\(.+\)', '', r['title']).strip()
+                try: year = int(r['releasedate'][:4]) if 'releasedate' in r else None
+                except: year = None
+                logger.debug('title:{t}, year:{y}'.format(t=title, y=year))
+
+                ret = LogicMovie.search(title, year)
+                if not ret or len(ret)==0: continue
+                info['vod_site'] = 'wavve'
+                """
                 m = dict()
-                m['type'] = 'wavve'
+                m['vod_site'] = 'tving'
                 m['title'] = r['title']
                 m['code'] = r['movieid']
                 m['year'] = r['releasedate'][:4] if 'releasedate' in r else '-'
                 m['poster_url'] = 'https://' + r['image']
                 wlist.append(m)
+                #wlist.append(info)
 
             return wlist
 
