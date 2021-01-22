@@ -8,7 +8,8 @@
     <div class="container-fluid">
       <div class="row show-grid" align="center">
         <span class="col-md-10">
-	  <input id="search_word" name="search_word" class="form-control form-control-sm w-75" type="text" placeholder="제목검색" aria-label="Search">
+          <button id="movie_search_modal_btn" class="btn btn-sm btn-outline-success">영화등록</button>
+	  <input id="search_word" name="search_word" class="form-control form-control-sm w-75" type="text" placeholder="제목입력" aria-label="Search">
           <button id="search" class="btn btn-sm btn-outline-success">검색</button>
 	  <button id="reset_btn" class="btn btn-sm btn-outline-success">리셋</button>
         </span>
@@ -29,6 +30,44 @@
   <div id="list_div"></div>
 </div>
 
+<!-- 영화검색용 Modal -->
+<div class="modal fade" id="movie_search_modal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title" id="modal_title">영화 검색하기</h4>
+      </div>
+      <div class="modal-body" id="modal_body" style="word-break:break-all;">
+	<form id="movie_search_form" name="movie_search_form">
+	  <div class="input-group col-sm-12">
+		<div class="col-md-10" style="align-items:left; text-align:left;">
+		  <input id="movie_search_keyword" name="movie_search_keyword" class="form-control form-control-sm w-100" type="text" placeholder="" aria-label="Search">
+		</div>
+		<div class="col-md-2" style="align-items:left; text-align:left;">
+		  <button id="movie_search_btn" class="btn btn-sm btn-outline-success">검색</button>
+		  <button id="modal_reset_btn" class="btn btn-sm btn-outline-success">리셋</button>
+		</div>
+	  </div>
+	</form>
+	<hr>
+	<div class="col-sm-12 w-100" align="center">
+          {{ macros.m_hr_head_top() }}
+          {{ macros.m_row_start('0') }}
+          {{ macros.m_col(3, macros.m_strong('포스터')) }}
+          {{ macros.m_col(5, macros.m_strong('제목/정보')) }}
+          {{ macros.m_col(2, macros.m_strong('기능')) }}
+          {{ macros.m_row_end() }}
+          {{ macros.m_hr_head_bottom() }}
+ 	  <div id="movie_search_result"></span>
+	</div>
+	</div> <!-- body -->
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">닫기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 
 <script type="text/javascript">
 var package_name = "{{arg['package_name'] }}";
@@ -41,7 +80,7 @@ var fpath = null
 
 $(document).ready(function(){
   formData = get_formdata('#form_search');
-  request_search('1');
+  //request_search('1');
 });
 
 $("#search").click(function(e) {
@@ -226,6 +265,65 @@ $("body").on('click', '#etc_btn', function(e){
   gtype='etc';
   request_search('1');
 });
+
+<!-- 영화검색 modal 관련 -->
+$("body").on('click', '#movie_search_modal_btn', function(e) {
+  e.preventDefault();
+  $("#movie_search_modal").modal();
+});
+
+$("body").on('click', '#movie_search_btn', function(e) {
+  e.preventDefault();
+  keyword = document.getElementById('movie_search_keyword').value;
+  if (keyword.length < 1) {
+    $.notify('<strong>검색어를 입력해주세요</strong>', {type: 'warning'});
+    return
+  }
+  $.ajax({
+    url: '/' + package_name + '/ajax/movie_search',
+    type: "POST", 
+    cache: false,
+    data: {keyword:keyword},
+    dataType: "json",
+    success: function (data) {
+      current_data = data;
+      if (data == '') {
+        $.notify('<strong>검색에 실패하셨습니다.</strong>', {type: 'warning'});
+        return
+      }
+      str = '';
+      tmp = '';
+      for (i in data) {
+    	str += m_row_start();
+        tmp = '<img src="'+data[i].poster_url+'" class="img-fluid img-thumbnail">';
+	str += m_col(3, tmp);
+        tmp = '<strong>' + data[i].title + '</strong><br>';
+        tmp += '개봉: ' + data[i].year + '<br>';
+        tmp += '제공: ' + data[i].type + '<br>';
+	str += m_col(5, tmp);
+
+        tmp = m_button2('strm_create_btn', '추가', [{'key':'code', 'value':data[i].code}], 'info');
+        tmp += m_button('movie_detail_btn', '정보', [{'key':'code', 'value':data[i].code}]);
+        btn_str = m_button_group(tmp);
+	str += m_col(2, btn_str);
+        str += m_row_end();
+	if (i != data.length -1) str += m_hr();
+      }
+      document.getElementById("movie_search_result").innerHTML = str;
+    }
+  });
+});
+
+$("#movie_search_modal").on('shown.bs.modal', function(){
+  $('#movie_search_keyword').focus().select();
+});
+
+$("#movie_search_modal").on('click', '#modal_reset_btn', function(e){
+  e.preventDefault();
+  document.getElementById("movie_search_result").innerHTML = '';
+  document.getElementById("movie_search_keyword").value = '';
+});
+
 
 </script>    
 {% endblock %}

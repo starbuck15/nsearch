@@ -231,17 +231,20 @@ class LogicOtt(object):
             logger.error(traceback.format_exc())
 
     @staticmethod
-    def do_strm_proc(target_path, section_id):
+    def do_strm_proc(ctype, target_path, section_id):
         logger.debug('Thread started:do_strm_proc()')
 
         title = os.path.splitext(os.path.basename(target_path))[0]
-        # Daum정보 조회
-        daum_info = LogicOtt.get_daum_tv_info(title)
-        if daum_info is None:
-            logger.debug('메타데이터 조회 실패(%s)', title)
-            data ={'type':'warning', 'msg':'메타데이터 조회 실패({t})'.format(t=title)}
-            socketio.emit("notify", data, namespace='/framework', broadcate=True)
-            return
+
+        if ctype == 'show': # TV show ott 
+            daum_info = LogicOtt.get_daum_tv_info(title)
+            if daum_info is None:
+                logger.debug('메타데이터 조회 실패(%s)', title)
+                data ={'type':'warning', 'msg':'메타데이터 조회 실패({t})'.format(t=title)}
+                socketio.emit("notify", data, namespace='/framework', broadcate=True)
+                return
+        else: # Movie ott
+            daum_info = {'movie':'TODO'}
 
         # 파일생성: 최초
         LogicOtt.save_dauminfo_to_file(target_path, daum_info)
@@ -252,9 +255,9 @@ class LogicOtt(object):
         cnt = 0
         while True:
             if cnt > 30: break
-
             logger.debug('스캔명령 전송 대기...')
             time.sleep(ModelSetting.get_int('plex_scan_delay'))
+	    cnt += 1
             if os.path.isfile(target_path):
                 break
 
@@ -301,7 +304,7 @@ class LogicOtt(object):
 
             def func():
                 time.sleep(1)
-                LogicOtt.do_strm_proc(target_path, section_id)
+                LogicOtt.do_strm_proc(ctype, target_path, section_id)
 
             thread = threading.Thread(target=func, args=())
             thread.setDaemon(True)
@@ -673,7 +676,7 @@ class LogicOtt(object):
                 if item['status'] != daum_info['status']:
                     logger.debug('방영정보가 변경되어 파일갱신: %s', item['file_path'])
                     LogicOtt.save_dauminfo_to_file(item['file_path'], daum_info)
-                    MemItem = LogicOtt.OttShowList.index(item)
+                    MemItem = LogicOtt.OttShowList[LogicOtt.OttShowList.index(item)]
                     MemItem['status'] = daum_info['status']
 
                 if ModelSetting.get_bool('meta_update_notify'):
@@ -693,6 +696,39 @@ class LogicOtt(object):
 
     @staticmethod
     def show_metadata_refresh(req):
+        try:
+            logger.debug(req.form)
+            ret = {}
+            req_type = None
+            if 'list' not in req.form.keys(): req_type = 'all'
+            else: title_list = req.form['list'].split(u',')
+
+            movie_list = LogicOtt.OttMovieList[:]
+            target_list = []
+
+            if req_type == 'all':
+                target_list = movie_list
+            else:
+                for item in movie_list:
+                    if item['title'] in title_list:
+                        target_list.append(item)
+
+            def func():
+                time.sleep(3)
+                LogicOtt.do_metadata_refresh(target_list)
+
+            thread = threading.Thread(target=func, args=())
+            thread.setDaemon(True)
+            thread.start()
+
+            ret = {'ret':'success', 'msg':'{n}개의 아이템 메타업테이트 요청 완료'.format(n=len(target_list))}
+            return ret
+        except Exception as exception:
+            logger.error('Exception:%s', exception)
+            logger.error(traceback.format_exc())
+
+    @staticmethod
+    def movie_metadata_refresh(req):
         try:
             logger.debug(req.form)
             ret = {}
@@ -766,4 +802,63 @@ class LogicOtt(object):
             logger.error('Exception:%s', exception)
             logger.error(traceback.format_exc())
             return {'ret':'error', 'msg':'삭제실패(exception): 로그를 확인해주세요. '}
+
+    @staticmethod
+    def movie_search_tving(keyword):
+        try:
+            tlist = []
+            import framework.tving.api as Tving
+            l = Tving.search_tv(keyword)
+            if not l: return []
+            for r in l:
+                m = dict()
+                m['type'] = 'tving'
+                m['title'] = r['mast_nm']
+                m['code'] = r['mast_cd']
+                m['year'] = r['broad_dt'][:4]
+                m['poster_url'] = 'https://image.tving.com' + r['web_url']
+                tlist.append(m)
+
+            return tlist
+
+        except Exception as exception:
+            logger.error('Exception:%s', exception)
+            logger.error(traceback.format_exc())
+
+    @staticmethod
+    def movie_search_wavve(keyword):
+        try:
+            wlist = []
+            import framework.wavve.api as Wavve
+            l = Wavve.search_movie(keyword)['list']
+            # TODO: 에러처리
+            if len(l) == 0: return []
+            for i in l:
+                movieid = i['movieid']
+                r = Wavve.movie_contents_movieid(movieid)
+                m = dict()
+                m['type'] = 'wavve'
+                m['title'] = r['title']
+                m['code'] = r['movieid']
+                m['year'] = r['releasedate'][:4] if 'releasedate' in r else '-'
+                m['poster_url'] = 'https://' + r['image']
+                wlist.append(m)
+
+            return wlist
+
+        except Exception as exception:
+            logger.error('Exception:%s', exception)
+            logger.error(traceback.format_exc())
+
+    @staticmethod
+    def movie_search(keyword):
+        try:
+            tlist = LogicOtt.movie_search_tving(keyword)
+            wlist = LogicOtt.movie_search_wavve(keyword)
+            movie_list = tlist + wlist
+            return movie_list
+
+        except Exception as exception:
+            logger.error('Exception:%s', exception)
+            logger.error(traceback.format_exc())
 

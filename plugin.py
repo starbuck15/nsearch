@@ -42,7 +42,7 @@ menu = {
     'category' : 'vod',
     'sub2': {
         'plexott': [
-            ['setting', u'설정'], ['show_list',u'TV목록'],['movie_list', u'영화목록']
+            ['setting', u'설정'], ['show_list',u'TV목록'],['movie_list', u'영화목록(개발중)']
         ]
      }
 }
@@ -332,13 +332,24 @@ def ajax(sub):
                 logger.error(traceback.format_exc())
                 ret = {'ret':'error', 'data':'Exception! 로그를 확인하세요'}
                 return jsonify(ret)
+
+        elif sub == 'movie_search':
+            try:
+                keyword = request.form['keyword']
+                ret = LogicOtt.movie_search(keyword)
+                return jsonify(ret)
+            except Exception as e:
+                logger.error('Exception:%s', e)
+                logger.error(traceback.format_exc())
+                return jsonify('fail')
+
         elif sub == 'meta_refresh':
             try:
                 ctype = request.form['ctype']
                 if ctype == 'show':
                     ret = LogicOtt.show_metadata_refresh(request)
                 else: #movie
-                    ret = LogicOtt.plexott_movie_list(request)
+                    ret = LogicOtt.movie_metadata_refresh(request)
                 return jsonify(ret)
             except Exception as e:
                 logger.error('Exception:%s', e)
