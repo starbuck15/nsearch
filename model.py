@@ -104,6 +104,19 @@ class ModelSetting(db.Model):
             return False
 
     @staticmethod
+    def save_recent_to_json(key, value):
+        try:
+            entity = db.session.query(ModelSetting).filter_by(key=key).with_for_update().first()
+            entity.value = json.dumps(value)
+            db.session.commit()
+            return True
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+            logger.debug('Error Key:%s Value:%s', key, value)
+            return False
+
+    @staticmethod
     def get_list(key):
         try:
             value = ModelSetting.get(key)

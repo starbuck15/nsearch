@@ -29,11 +29,42 @@ class LogicOtt(object):
     OttShowList = []
     OttMovieList = []
 
+    PrevWavveRecentItem = None
+    PrevTvingRecentItem = None
+
     @staticmethod
     def ott_show_scheduler_function():
         try:
+            logger.debug('[schedule] ott_show scheduler_function start..')
+
+            wavve_list = LogicOtt.get_recent_wavve_list()
+            tving_list = LogicOtt.get_recent_tving_list()
+            recent_list = wavve_list+tving_list
+
+            target_list = []
+
+            logger.debug('[schedule] recent vod items:{n}, T({t}), W({w})'.
+                format(n=len(recent_list), w=LogicOtt.PrevWavveRecentItem['title'], t=LogicOtt.PrevTvingRecentItem['title']))
+
+            for recent in recent_list:
+                daum_info = LogicOtt.get_daum_tv_info(recent['title'])
+                for item in LogicOtt.OttShowList:
+                    #logger.debug('title r({r}),m({m})'.format(r=recent['title'],m=item['title']))
+                    if item['status'] != 1: continue # 방영중이 아닌 경우 제외
+                    if daum_info and daum_info['code'] != '':
+                        if daum_info['code'] == item['code']:
+                            logger.debug('[schedule] 메타갱신 대상에 추가(%s)', item['title'])
+                            target_list.append(item)
+                    else:
+                        if recent['title'] == item['title'].encode('utf-8'):
+                            logger.debug('[schedule] 메타갱신 대상에 추가(%s)', item['title'])
+                            target_list.append(item)
+
+            if len(target_list) > 0: LogicOtt.do_metadata_refresh(target_list)
+            else: logger.debug('[schedule] no target item(s) recent vod')
+
+            """
             wd = [u'월', u'화', u'수', u'목', u'금', u'토', u'일']
-            logger.debug('ott_show scheduler_function start..')
 
             sch_interval = ModelSetting.get_int('ott_show_scheduler_interval') # 분
             delay = ModelSetting.get_int('meta_update_delay') #분
@@ -44,6 +75,7 @@ class LogicOtt(object):
             a_time = now - timedelta(minutes=(delay + sch_interval + 5))
             b_time = now - timedelta(minutes=(delay - sch_interval - 5))
 
+            logger.info('[schedule] 메타 갱신대상 시간: {a} ~ {b}'.format(a=a_time.strftime('%Y-%m-%d %H:%M:%S'),b=b_time.strftime('%Y-%m-%d %H:%M:%S')))
             # 대상 요일 설정
             twday = wd[a_time.weekday()]
 
@@ -71,13 +103,100 @@ class LogicOtt(object):
 
             if len(target_list) > 0:
                 LogicOtt.do_metadata_refresh(target_list)
+            """
 
-            logger.debug('ott_show scheduler_function end..')
+            logger.debug('[schedule] ott_show scheduler_function end..')
 
-        except Exception as e: 
+        except Exception as e:
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
             return False
+
+
+    @staticmethod
+    def get_recent_wavve_list():
+        try:
+            wavve_list = []
+            import framework.wavve.api as Wavve
+            vod_list = Wavve.vod_newcontents(page=1)['list']
+            for vod in vod_list:
+                item = dict()
+                item['title'] = LogicOtt.change_text_for_use_filename(vod['programtitle'])
+                item['code'] = vod['programid']
+                item['channel'] = vod['channelname']
+                item['episode'] = vod['episodenumber']
+                item['qvod'] = True if vod['episodetitle'].find('Quick VOD') != -1 else False
+
+                #logger.debug('{t},{e},{q}'.format(t=item['title'],e=item['episode'],q=item['qvod']))
+                wavve_list.append(item)
+
+            logger.debug('[schedule] wavve: recent count: {n}'.format(n=len(wavve_list)))
+
+            # TODO: 여러페이지 탐색 처리
+            if LogicOtt.PrevWavveRecentItem != None and LogicOtt.PrevWavveRecentItem in wavve_list:
+                idx = wavve_list.index(LogicOtt.PrevWavveRecentItem)
+                wavve_list = wavve_list[:idx]
+
+            if len(wavve_list) > 0:
+                LogicOtt.PrevWavveRecentItem = wavve_list[0]
+                ModelSetting.save_recent_to_json('prev_wavve_recent_json', wavve_list[0])
+
+            logger.debug('[schedule] wavve: recent vod items(processed):{n}'.format(n=len(wavve_list)))
+            return wavve_list
+        except Exception as exception:
+            logger.error('Exception:%s', exception)
+            logger.error(traceback.format_exc())
+
+    @staticmethod
+    def get_recent_tving_list():
+        try:
+            tving_list = list()
+
+            import framework.tving.api as Tving
+            from tving.basic import TvingBasic
+            from tving.model import Episode
+            vod_list = Tving.get_vod_list(page=1)['body']['result']
+            for vod in vod_list:
+                episode = Episode('auto')
+                json_data, url = TvingBasic.get_episode_json(vod['episode']['code'], 'FHD')
+                episode = TvingBasic.make_episode_by_json(episode, json_data, url)
+                quick_vod = True if url.find('quick_vod') != -1 else False
+
+                item = dict()
+                item['title'] = LogicOtt.change_text_for_use_filename(vod['program']['name']['ko'])
+                item['code'] = vod['program']['code']
+                item['channel'] = vod['channel']['name']['ko']
+                item['episode'] = vod['episode']['frequency']
+                item['qvod'] = quick_vod
+
+                #logger.debug('{t},{e},{q}'.format(t=item['title'],e=item['episode'],q=item['qvod']))
+                tving_list.append(item)
+
+            logger.debug('[schedule] tving: recent count: {n}'.format(n=len(tving_list)))
+
+            # TODO: 여러페이지 탐색 처리
+            if LogicOtt.PrevTvingRecentItem != None and LogicOtt.PrevTvingRecentItem in tving_list:
+                idx = tving_list.index(LogicOtt.PrevTvingRecentItem)
+                tving_list = tving_list[:idx]
+
+            if len(tving_list) > 0:
+                LogicOtt.PrevTvingRecentItem = tving_list[0]
+                ModelSetting.save_recent_to_json('prev_tving_recent_json', tving_list[0])
+
+            logger.debug('[schedule] tving: recent vod items(processed):{n}'.format(n=len(tving_list)))
+            return tving_list
+        except Exception as exception:
+            logger.error('Exception:%s', exception)
+            logger.error(traceback.format_exc())
+
+    @staticmethod
+    def get_recent_vod_list():
+        try:
+            wavve_list = LogicOtt.get_recent_wavve_list()
+            tving_list = LogicOtt.get_recent_tving_list()
+        except Exception as exception:
+            logger.error('Exception:%s', exception)
+            logger.error(traceback.format_exc())
 
     @staticmethod
     def get_plex_path(filepath):
@@ -107,7 +226,7 @@ class LogicOtt(object):
         try:
             import re
             return re.sub('[\\/:*?\"<>|]', '', text).strip()
-        except Exception as exception: 
+        except Exception as exception:
             logger.error('Exception:%s', exception)
             logger.error(traceback.format_exc())
 
@@ -201,7 +320,7 @@ class LogicOtt(object):
             with open(fpath, 'w') as f:
                 json.dump(daum_info, f, indent=2)
 
-        except Exception as exception: 
+        except Exception as exception:
             logger.error('Exception:%s', exception)
             logger.error(traceback.format_exc())
 
@@ -215,7 +334,7 @@ class LogicOtt(object):
 
             LogicOtt.OttShowList.append(newitem)
 
-        except Exception as exception: 
+        except Exception as exception:
             logger.error('Exception:%s', exception)
             logger.error(traceback.format_exc())
 
@@ -245,7 +364,7 @@ class LogicOtt(object):
 
             LogicOtt.append_item_to_show_list(item)
 
-        except Exception as exception: 
+        except Exception as exception:
             logger.error('Exception:%s', exception)
             logger.error(traceback.format_exc())
 
@@ -255,7 +374,7 @@ class LogicOtt(object):
             with open(fpath, 'r') as f:
                 daum_info = json.load(f)
             return daum_info
-        except Exception as exception: 
+        except Exception as exception:
             logger.error('Exception:%s', exception)
             logger.error(traceback.format_exc())
 
@@ -269,7 +388,7 @@ class LogicOtt(object):
             ret = {}
             wdays = []
 
-            logger.debug('broadcast_str: %s', broadcast_str)
+            #logger.debug('broadcast_str: %s', broadcast_str)
             match = re.compile(rx).search(broadcast_str.encode('utf-8'))
             #logger.debug(match)
             if match:
@@ -279,7 +398,6 @@ class LogicOtt(object):
                 # 요일
                 if wday.find(u'~') != -1:  # 월~금 형태
                     tmp = wday.split(u'~')
-                    logger.debug(tmp)
                     wdays = wd[wd.index(tmp[0].strip()):wd.index(tmp[1].strip())+1]
                 else: # 월, 화, 수.. 형태
                     for w in wday.split(','):
@@ -293,7 +411,7 @@ class LogicOtt(object):
 
             return None
 
-        except Exception as exception: 
+        except Exception as exception:
             logger.error('Exception:%s', exception)
             logger.error(traceback.format_exc())
 
@@ -337,7 +455,7 @@ class LogicOtt(object):
                     daum_info['status'] = info['status'] if 'status' in info.keys() else -1
                     daum_info['poster_url'] = info['image_url'] if 'image_url' in info.keys() else ''
                     daum_info['genre'] = info['genre'] if 'genre' in info.keys() else ''
-    
+
                     tmpinfo = info['broadcast_info'] if 'broadcast_info' in info.keys() else ''
                     # 임시 예외처리
                     tmpinfo = tmpinfo.replace('&nbsp;', ' ').replace('&nbsp', ' ')
@@ -353,7 +471,7 @@ class LogicOtt(object):
 
             return daum_info
 
-        except Exception as exception: 
+        except Exception as exception:
             logger.error('Exception:%s', exception)
             logger.error(traceback.format_exc())
             return None
@@ -400,7 +518,7 @@ class LogicOtt(object):
 
             logger.info('load_show_items(): %d items loaded', len(LogicOtt.OttShowList))
 
-        except Exception as exception: 
+        except Exception as exception:
             logger.error('Exception:%s', exception)
             logger.error(traceback.format_exc())
 
@@ -433,7 +551,7 @@ class LogicOtt(object):
                 ret['list'] = slist
                 ret['ret'] = 'success'
                 return ret
-                        
+
             # 장르 처리
             glist = []
             for item in slist:
@@ -485,7 +603,7 @@ class LogicOtt(object):
             ret['ret'] = 'success'
             return ret
 
-        except Exception as exception: 
+        except Exception as exception:
             logger.error('Exception:%s', exception)
             logger.error(traceback.format_exc())
 
@@ -534,8 +652,8 @@ class LogicOtt(object):
             ret['ret'] = 'success'
             ret['list'] = item_list
             return ret
-                
-        except Exception as exception: 
+
+        except Exception as exception:
             logger.error('Exception:%s', exception)
             logger.error(traceback.format_exc())
 
@@ -567,7 +685,7 @@ class LogicOtt(object):
             data = {'type':'success', 'msg':'메타데이터 갱신요청완료({n}건)'.format(n=count)}
             socketio.emit("notify", data, namespace='/framework', broadcate=True)
 
-        except Exception as exception: 
+        except Exception as exception:
             logger.error('Exception:%s', exception)
             logger.error(traceback.format_exc())
             data = {'type':'warning', 'msg':'메타갱신실패, 로그를 확인해주세요'}
@@ -581,7 +699,7 @@ class LogicOtt(object):
             req_type = None
             if 'list' not in req.form.keys(): req_type = 'all'
             else: title_list = req.form['list'].split(u',')
-            
+
             show_list = LogicOtt.OttShowList[:]
             target_list = []
 
@@ -602,7 +720,7 @@ class LogicOtt(object):
 
             ret = {'ret':'success', 'msg':'{n}개의 아이템 메타업테이트 요청 완료'.format(n=len(target_list))}
             return ret
-        except Exception as exception: 
+        except Exception as exception:
             logger.error('Exception:%s', exception)
             logger.error(traceback.format_exc())
 
@@ -613,7 +731,7 @@ class LogicOtt(object):
             data = {'type':'success', 'msg':'파일삭제 성공({f})'.format(f=fpath)}
             socketio.emit("notify", data, namespace='/framework', broadcate=True)
 
-        except Exception as exception: 
+        except Exception as exception:
             logger.error('Exception:%s', exception)
             logger.error(traceback.format_exc())
             data = {'type':'warning', 'msg':'파일삭제실패, 로그를 확인해주세요'}
@@ -644,7 +762,7 @@ class LogicOtt(object):
 
             return {'ret':'error', 'msg':'리스트에 정보가 존재하지 않습니다.'}
 
-        except Exception as exception: 
+        except Exception as exception:
             logger.error('Exception:%s', exception)
             logger.error(traceback.format_exc())
             return {'ret':'error', 'msg':'삭제실패(exception): 로그를 확인해주세요. '}

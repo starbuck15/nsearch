@@ -5,6 +5,7 @@ import os
 import traceback
 import time
 import threading
+import json
 
 # third-party
 
@@ -48,6 +49,10 @@ class Logic(object):
         'meta_update_delay' : '60',
         'meta_update_interval' : '1',
         'meta_update_notify' : 'False',
+
+        # non-ui for schedule
+        'prev_wavve_recent_json' : u'',
+        'prev_tving_recent_json' : u'',
     }
 
     @staticmethod
@@ -72,6 +77,16 @@ class Logic(object):
 
             # 플러그인 로드시 데이터로드
             LogicOtt.load_show_items()
+
+            if ModelSetting.get('prev_wavve_recent_json') == u'':
+                LogicOtt.PrevWavveRecentItem = None
+            else:
+                LogicOtt.PrevWavveRecentItem = json.loads(ModelSetting.get('prev_wavve_recent_json'))
+
+            if ModelSetting.get('prev_tving_recent_json') == u'':
+                LogicOtt.PrevTvingRecentItem = None
+            else:
+                LogicOtt.PrevTvingRecentItem = json.loads(ModelSetting.get('prev_tving_recent_json'))
 
             if ModelSetting.get('ott_show_scheduler_auto_start') == 'True':
                 Logic.ott_show_metadata_scheduler_start()
