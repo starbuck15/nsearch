@@ -37,27 +37,23 @@ class LogicOtt(object):
     def ott_show_scheduler_function():
         try:
             logger.debug('[schedule] ott_show scheduler_function start..')
-
-            wavve_list = LogicOtt.get_recent_wavve_list()
-            tving_list = LogicOtt.get_recent_tving_list()
-            recent_list = wavve_list+tving_list
+            recent_list = LogicOtt.get_recent_vod_list()
 
             target_list = []
 
-            logger.debug('[schedule] recent vod items:{n}, T({t}), W({w})'.
-                format(n=len(recent_list), w=LogicOtt.PrevWavveRecentItem['title'], t=LogicOtt.PrevTvingRecentItem['title']))
+            logger.debug('[schedule] recent vod items:{n}'.format(n=len(recent_list)))
 
             for recent in recent_list:
-                daum_info = LogicOtt.get_daum_tv_info(recent['title'])
                 for item in LogicOtt.OttShowList:
                     #logger.debug('title r({r}),m({m})'.format(r=recent['title'],m=item['title']))
                     if item['status'] != 1: continue # 방영중이 아닌 경우 제외
-                    if daum_info and daum_info['code'] != '':
-                        if daum_info['code'] == item['code']:
-                            logger.debug('[schedule] 메타갱신 대상에 추가(%s)', item['title'])
-                            target_list.append(item)
+                    title = LogicOtt.change_text_for_use_filename(recent['title'])
+                    if title == item['title'].encode('utf-8'):
+                        logger.debug('[schedule] 메타갱신 대상에 추가(%s)', item['title'])
+                        target_list.append(item)
                     else:
-                        if recent['title'] == item['title'].encode('utf-8'):
+                        daum_info = LogicOtt.get_daum_tv_info(title)
+                        if daum_info and daum_info['code'] == item['code']:
                             logger.debug('[schedule] 메타갱신 대상에 추가(%s)', item['title'])
                             target_list.append(item)
 
@@ -134,16 +130,24 @@ class LogicOtt(object):
             logger.debug('[schedule] wavve: recent count: {n}'.format(n=len(wavve_list)))
 
             # TODO: 여러페이지 탐색 처리
+            new_list = []
+            if type(LogicOtt.PrevWavveRecentItem) != type([]):
+                new_list = wavve_list[:]
+            else:
+                for item in wavve_list:
+                    if item not in LogicOtt.PrevWavveRecentItem: new_list.append(item)
+            """
             if LogicOtt.PrevWavveRecentItem != None and LogicOtt.PrevWavveRecentItem in wavve_list:
                 idx = wavve_list.index(LogicOtt.PrevWavveRecentItem)
                 wavve_list = wavve_list[:idx]
+            """
 
-            if len(wavve_list) > 0:
-                LogicOtt.PrevWavveRecentItem = wavve_list[0]
-                ModelSetting.save_recent_to_json('prev_wavve_recent_json', wavve_list[0])
+            if len(new_list) > 0:
+                LogicOtt.PrevWavveRecentItem = wavve_list
+                ModelSetting.save_recent_to_json('prev_wavve_recent_json', wavve_list)
 
-            logger.debug('[schedule] wavve: recent vod items(processed):{n}'.format(n=len(wavve_list)))
-            return wavve_list
+            logger.debug('[schedule] wavve: recent vod items(processed):{n}'.format(n=len(new_list)))
+            return new_list
         except Exception as exception:
             logger.error('Exception:%s', exception)
             logger.error(traceback.format_exc())
@@ -175,17 +179,25 @@ class LogicOtt(object):
 
             logger.debug('[schedule] tving: recent count: {n}'.format(n=len(tving_list)))
 
+            new_list = []
+            if type(LogicOtt.PrevTvingRecentItem) != type([]):
+                new_list = tving_list[:]
+            else:
+                for item in tving_list:
+                    if item not in LogicOtt.PrevTvingRecentItem: new_list.append(item)
+            """
             # TODO: 여러페이지 탐색 처리
             if LogicOtt.PrevTvingRecentItem != None and LogicOtt.PrevTvingRecentItem in tving_list:
                 idx = tving_list.index(LogicOtt.PrevTvingRecentItem)
                 tving_list = tving_list[:idx]
+            """
 
-            if len(tving_list) > 0:
-                LogicOtt.PrevTvingRecentItem = tving_list[0]
-                ModelSetting.save_recent_to_json('prev_tving_recent_json', tving_list[0])
+            if len(new_list) > 0:
+                LogicOtt.PrevTvingRecentItem = tving_list
+                ModelSetting.save_recent_to_json('prev_tving_recent_json', tving_list)
 
-            logger.debug('[schedule] tving: recent vod items(processed):{n}'.format(n=len(tving_list)))
-            return tving_list
+            logger.debug('[schedule] tving: recent vod items(processed):{n}'.format(n=len(new_list)))
+            return new_list
         except Exception as exception:
             logger.error('Exception:%s', exception)
             logger.error(traceback.format_exc())
@@ -195,6 +207,7 @@ class LogicOtt(object):
         try:
             wavve_list = LogicOtt.get_recent_wavve_list()
             tving_list = LogicOtt.get_recent_tving_list()
+            return wavve_list + tving_list
         except Exception as exception:
             logger.error('Exception:%s', exception)
             logger.error(traceback.format_exc())

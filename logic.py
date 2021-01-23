@@ -46,7 +46,7 @@ class Logic(object):
         'plex_path_rule' : '',
         'ott_show_scheduler_auto_start' : 'False', 
         'ott_show_scheduler_interval' : '10', 
-        'meta_update_delay' : '60',
+        'meta_update_delay' : '60',     # not use
         'meta_update_interval' : '1',
         'meta_update_notify' : 'False',
 
