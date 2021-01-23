@@ -275,7 +275,7 @@ class LogicOtt(object):
             if cnt > 30: break
             logger.debug('스캔명령 전송 대기...')
             time.sleep(ModelSetting.get_int('plex_scan_delay'))
-	    cnt += 1
+            cnt += 1
             if os.path.isfile(target_path):
                 break
 
