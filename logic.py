@@ -42,6 +42,7 @@ class Logic(object):
         # added by orial
         # 일반
         'plex_scan_delay' : '60',
+        'plex_scan_min_limit' : '10',
         'plex_path_rule' : '',
         # TV-OTT
         'ott_show_scheduler_auto_start' : 'False', 
@@ -51,7 +52,7 @@ class Logic(object):
         'meta_update_notify' : 'False',
 
         # MOVIE-OTT
-        'movie_auto_classfy': 'True',
+        'movie_auto_classfy': 'False',
         'movie_search_score_limit': '80',
         'movie_search_only_possible': 'True',
         'movie_kodi_path'   : u'/mnt/gdrive/OTT/KODI/MOVIE',
@@ -92,19 +93,7 @@ class Logic(object):
             if ModelSetting.get('auto_start') == 'True':
                 Logic.scheduler_start()
 
-            # 플러그인 로드시 데이터로드
-            LogicOtt.load_show_items()
-            LogicOtt.load_movie_items()
-
-            if ModelSetting.get('prev_wavve_recent_json') == u'':
-                LogicOtt.PrevWavveRecentItem = None
-            else:
-                LogicOtt.PrevWavveRecentItem = json.loads(ModelSetting.get('prev_wavve_recent_json'))
-
-            if ModelSetting.get('prev_tving_recent_json') == u'':
-                LogicOtt.PrevTvingRecentItem = None
-            else:
-                LogicOtt.PrevTvingRecentItem = json.loads(ModelSetting.get('prev_tving_recent_json'))
+            LogicOtt.ott_initialize()
 
             if ModelSetting.get('ott_show_scheduler_auto_start') == 'True':
                 Logic.ott_show_metadata_scheduler_start()

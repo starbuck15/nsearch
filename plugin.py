@@ -5,6 +5,7 @@
 # python
 import os
 import traceback
+import threading
 
 # third-party
 from flask import Blueprint, request, Response, send_file, render_template, redirect, jsonify, session, send_from_directory 
@@ -361,10 +362,14 @@ def ajax(sub):
                 # for TV
                 if 'fpath' in request.form:
                     fpath = request.form['fpath']
-                    ret = LogicOtt.remove_file(fpath)
+                    req = {'type':'show', 'path':fpath}
                 else: # movie
                     code = request.form['code']
-                    ret = LogicOtt.remove_file_by_code(code)
+                    req = {'type':'movie', 'code':code}
+
+                LogicOtt.FileRemoveQueue.put(req)
+                ret = {'ret':'success', 'msg':'파일삭제 요청 완료'}
+
                 return jsonify(ret)
             except Exception as e:
                 logger.error('Exception:%s', e)

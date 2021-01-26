@@ -2,7 +2,6 @@
 #########################################################
 # python
 import os
-import datetime
 import traceback
 from datetime import datetime, timedelta
 import threading
@@ -15,16 +14,18 @@ import requests
 import lxml.html
 import glob
 # sjva 공용
-from framework import app, db, scheduler, path_app_root, celery, socketio
+from framework import app, db, scheduler, path_app_root, celery, socketio, py_queue
 from framework.job import Job
 from framework.util import Util
 from framework import py_urllib
 
+"""
 try:
     import pathlib
 except ImportError:
     os.system("{} install pathlib".format(app.config['config']['pip']))
     import pathlib
+"""
 
 # 패키지
 from .plugin import logger, package_name
@@ -46,6 +47,45 @@ class LogicOtt(object):
     MovieCountryRule = []
     MovieGenreRule = []
 
+    # Thread
+    FileRemoveThread = None
+    FileRemoveQueue = None
+
+    PlexScannerThread = None
+    PlexScannerQueue = None
+
+    @staticmethod
+    def ott_initialize():
+        try:
+            # 플러그인 로드시 데이터로드
+            LogicOtt.load_show_items()
+            LogicOtt.load_movie_items()
+
+            if ModelSetting.get('prev_wavve_recent_json') == u'': LogicOtt.PrevWavveRecentItem = None
+            else: LogicOtt.PrevWavveRecentItem = json.loads(ModelSetting.get('prev_wavve_recent_json'))
+
+            if ModelSetting.get('prev_tving_recent_json') == u'': LogicOtt.PrevTvingRecentItem = None
+            else: LogicOtt.PrevTvingRecentItem = json.loads(ModelSetting.get('prev_tving_recent_json'))
+
+            # Threads
+            if LogicOtt.FileRemoveQueue is None: LogicOtt.FileRemoveQueue = py_queue.Queue()
+            if LogicOtt.FileRemoveThread is None:
+                LogicOtt.FileRemoveThread = threading.Thread(target=LogicOtt.file_remove_thread_function, args=())
+                LogicOtt.FileRemoveThread.daemon = True
+                LogicOtt.FileRemoveThread.start()
+
+            if LogicOtt.PlexScannerQueue is None: LogicOtt.PlexScannerQueue = py_queue.Queue()
+            if LogicOtt.PlexScannerThread is None:
+                LogicOtt.PlexScannerThread = threading.Thread(target=LogicOtt.plex_scanner_thread_function, args=())
+                LogicOtt.PlexScannerThread.daemon = True
+                LogicOtt.PlexScannerThread.start()
+
+
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
+
     @staticmethod
     def ott_show_scheduler_function():
         try:
@@ -57,21 +97,23 @@ class LogicOtt(object):
             logger.debug('[schedule] recent vod items:{n}'.format(n=len(recent_list)))
 
             for recent in recent_list:
+                title = LogicOtt.change_text_for_use_filename(recent['title'])
+                daum_info = LogicOtt.get_daum_tv_info(title)
+
                 for item in LogicOtt.OttShowList:
                     #logger.debug('title r({r}),m({m})'.format(r=recent['title'],m=item['title']))
                     if item['status'] != 1: continue # 방영중이 아닌 경우 제외
-                    title = LogicOtt.change_text_for_use_filename(recent['title'])
                     if title == item['title'].encode('utf-8'):
                         logger.debug('[schedule] 메타갱신 대상에 추가(%s)', item['title'])
                         target_list.append(item)
-                    else:
-                        daum_info = LogicOtt.get_daum_tv_info(title)
-                        if daum_info and daum_info['code'] == item['code']:
-                            logger.debug('[schedule] 메타갱신 대상에 추가(%s)', item['title'])
-                            target_list.append(item)
+                        break
+                    if daum_info and daum_info['code'] == item['code']:
+                        logger.debug('[schedule] 메타갱신 대상에 추가(%s)', item['title'])
+                        target_list.append(item)
+                        break
 
             if len(target_list) > 0: LogicOtt.do_metadata_refresh(target_list)
-            else: logger.debug('[schedule] no target item(s) recent vod')
+            else: logger.debug('[schedule] no target item(s) in recent vod for metadata refresh')
 
             """
             wd = [u'월', u'화', u'수', u'목', u'금', u'토', u'일']
@@ -143,7 +185,6 @@ class LogicOtt(object):
 
             logger.debug('[schedule] wavve: recent count: {n}'.format(n=len(wavve_list)))
 
-            # TODO: 여러페이지 탐색 처리
             new_list = []
             if type(LogicOtt.PrevWavveRecentItem) != type([]):
                 new_list = wavve_list[:]
@@ -157,7 +198,7 @@ class LogicOtt(object):
             """
 
             if len(new_list) > 0:
-                LogicOtt.PrevWavveRecentItem = wavve_list
+                LogicOtt.PrevWavveRecentItem = wavve_list[:]
                 ModelSetting.save_recent_to_json('prev_wavve_recent_json', wavve_list)
 
             logger.debug('[schedule] wavve: recent vod items(processed):{n}'.format(n=len(new_list)))
@@ -207,7 +248,7 @@ class LogicOtt(object):
             """
 
             if len(new_list) > 0:
-                LogicOtt.PrevTvingRecentItem = tving_list
+                LogicOtt.PrevTvingRecentItem = tving_list[:]
                 ModelSetting.save_recent_to_json('prev_tving_recent_json', tving_list)
 
             logger.debug('[schedule] tving: recent vod items(processed):{n}'.format(n=len(new_list)))
@@ -259,36 +300,6 @@ class LogicOtt(object):
             logger.error(traceback.format_exc())
 
     @staticmethod
-    def do_scan_plex(section_id, target_path):
-        try:
-            cnt = 0
-            while True:
-                if cnt > 30: break
-                cnt += 1
-                logger.debug('스캔명령 전송 대기...(%d)', cnt)
-                time.sleep(ModelSetting.get_int('plex_scan_delay'))
-                if os.path.isfile(target_path): break
-    
-            from plex.model import ModelSetting as PlexModelSetting
-            server = PlexModelSetting.get('server_url')
-            token = PlexModelSetting.get('server_token')
-            logger.debug('스캔명령 전송: server(%s), token(%s), section_id(%s)', server, token, section_id)
-            url = '{server}/library/sections/{section_id}/refresh?X-Plex-Token={token}'.format(server=server, section_id=section_id, token=token)
-    
-            res = requests.get(url)
-            if res.status_code == 200:
-                logger.debug('스캔명령 전송 완료: %s', target_path)
-                data = {'type':'success', 'msg':'아이템({p}) 추가/스캔요청 완료.'.format(p=target_path)}
-            else:
-                logger.error('스캔명령 전송 실패: %s', target_path)
-                data = {'type':'warning', 'msg':'스캔명령 전송 실패! 로그를 확인해주세요'}
-            socketio.emit("notify", data, namespace='/framework', broadcate=True)
-        except Exception as e:
-            logger.error('Exception:%s', e)
-            logger.error(traceback.format_exc())
-
-
-    @staticmethod
     def do_show_strm_proc(ctype, target_path, section_id):
         logger.debug('Thread started:do_show_strm_proc()')
 
@@ -310,7 +321,7 @@ class LogicOtt(object):
         socketio.emit("notify", data, namespace='/framework', broadcate=True)
 
         # plex scan
-        LogicOtt.do_scan_plex(section_id, target_path)
+        LogicOtt.PlexScannerQueue.put({'section_id':section_id, 'file_path':target_path, 'now':datetime.now()})
         logger.debug('Thread ended:do_show_strm_proc()')
 
     @staticmethod
@@ -330,7 +341,8 @@ class LogicOtt(object):
         if 'strm_type' not in m: m['strm_type'] = strm_type
         elif m['strm_type'] != strm_type: m['strm_type'] = 'all'
 
-        LogicOtt.save_data_to_file(target_path, m['stream_url'])
+        if strm_type == 'kodi': LogicOtt.save_data_to_file(target_path, m['kodi_url'])
+        else: LogicOtt.save_data_to_file(target_path, m['plex_url'])
         # info 파일 생성
         if strm_type == "plex": m['path_plex'] = target_path
         else: m['path_kodi'] = target_path
@@ -344,7 +356,7 @@ class LogicOtt(object):
         socketio.emit("notify", data, namespace='/framework', broadcate=True)
 
         if strm_type == 'plex':
-            LogicOtt.do_scan_plex(section_id, target_path)
+            LogicOtt.PlexScannerQueue.put({'section_id':section_id, 'file_path':target_path, 'now':datetime.now()})
         logger.debug('Thread ended:do_movie_strm_proc()')
 
     @staticmethod
@@ -721,6 +733,18 @@ class LogicOtt(object):
         return False
     
     @staticmethod
+    def load_files(target_path, target_ext):
+        file_list = []
+
+        for (path, dir, files) in os.walk(target_path):
+            for filename in files:
+                ext = os.path.splitext(filename)[-1]
+                if ext == target_ext:
+                    file_list.append(os.path.join(path, filename))
+
+        return file_list
+
+    @staticmethod
     def load_movie_items():
         try:
             logger.info('load_movie_items(): started')
@@ -729,8 +753,11 @@ class LogicOtt(object):
             if not os.path.isdir(list_path):
                 os.makedirs(list_path)
 
+            """
             p_temp = pathlib.Path(list_path)
             strm_list = [str(f) for f in list(p_temp.glob('**/*')) if LogicOtt.is_info(str(f))]
+            """
+            strm_list = LogicOtt.load_files(list_path, '.info')
 
             for file_path in strm_list:
                 fname = os.path.basename(file_path)
@@ -756,8 +783,11 @@ class LogicOtt(object):
                 logger.error('failed to load show items')
                 time.sleep(0.5)
 
+            """
             p_temp = pathlib.Path(library_path)
             strm_list = [str(f) for f in list(p_temp.glob('**/*')) if LogicOtt.is_strm(str(f))]
+            """
+            strm_list = LogicOtt.load_files(library_path, '.strm')
             for file_path in strm_list:
                 fname = os.path.basename(file_path)
                 if not os.path.isfile(file_path):
@@ -1002,81 +1032,12 @@ class LogicOtt(object):
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
 
-    @staticmethod
-    def do_remove_file(fpath):
-        try:
-            if os.path.isfile(fpath): os.remove(fpath)
-            data = {'type':'success', 'msg':'파일삭제 성공({f})'.format(f=fpath)}
-            socketio.emit("notify", data, namespace='/framework', broadcate=True)
 
         except Exception as e:
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
             data = {'type':'warning', 'msg':'파일삭제실패, 로그를 확인해주세요'}
             socketio.emit("notify", data, namespace='/framework', broadcate=True)
-
-    @staticmethod
-    def remove_file(fpath):
-        try:
-            ret = {}
-            if not os.path.isfile(fpath):
-                return {'ret':'error', 'msg':'삭제실패: 존재하지 않는 파일입니다.'}
-
-            for item in LogicOtt.OttShowList:
-                if item['file_path'] == fpath:
-                    LogicOtt.OttShowList.remove(item)
-
-                    def func():
-                        time.sleep(2)
-                        LogicOtt.do_remove_file(fpath)
-
-                    thread = threading.Thread(target=func, args=())
-                    thread.setDaemon(True)
-                    thread.start()
-
-                    logger.debug('파일을 삭제요청 완료.(%s)', fpath)
-                    ret = {'ret':'success', 'msg':'파일삭제 요청({f})'.format(f=fpath)}
-                    return ret
-
-            return {'ret':'error', 'msg':'리스트에 정보가 존재하지 않습니다.'}
-
-        except Exception as e:
-            logger.error('Exception:%s', e)
-            logger.error(traceback.format_exc())
-            return {'ret':'error', 'msg':'삭제실패(e): 로그를 확인해주세요. '}
-
-    @staticmethod
-    def remove_file_by_code(code):
-        try:
-            ret = {}
-            m = LogicOtt.get_movie_info_from_list(code)
-            if m is None:
-                return {'ret':'error', 'msg':'정보를 확인할수 없습니다.(code:{c})'.format(c=code)}
-
-            for x in ['path_info', 'path_plex', 'path_kodi']:
-                if x not in m: continue
-                fpath = m[x]
-                if not os.path.isfile(fpath):
-                    return {'ret':'error', 'msg':'삭제실패: 존재하지 않는 파일입니다.({p})'.format(p=fpath)}
-
-                def func():
-                    time.sleep(2)
-                    LogicOtt.do_remove_file(fpath)
-
-                thread = threading.Thread(target=func, args=())
-                thread.setDaemon(True)
-                thread.start()
-
-            logger.debug('파일을 삭제요청 완료.(%s)', fpath)
-            LogicOtt.OttMovieList.remove(m)
-
-            ret = {'ret':'success', 'msg':'파일삭제 요청을 완료하였습니다.'}
-            return ret
-
-        except Exception as e:
-            logger.error('Exception:%s', e)
-            logger.error(traceback.format_exc())
-            return {'ret':'error', 'msg':'삭제실패: 로그를 확인해주세요. '}
 
     @staticmethod
     def movie_info_map(info):
@@ -1108,10 +1069,10 @@ class LogicOtt(object):
         for stream in streams:
             if stream in info['extra_info']:
                 m['drm'] = info['extra_info'][stream]['drm']
-                if 'request_streaming_url' in info['extra_info'][stream]:
-                    m['stream_url'] = info['extra_info'][stream]['request_streaming_url'] 
+                if 'plex' in info['extra_info'][stream]:
+                    m['plex_url'] = info['extra_info'][stream]['kodi'] 
                 if 'kodi' in info['extra_info'][stream]:
-                    m['stream_url'] = info['extra_info'][stream]['kodi'] 
+                    m['kodi_url'] = info['extra_info'][stream]['kodi'] 
                 m['permission'] = True
                 break
 
@@ -1305,7 +1266,7 @@ class LogicOtt(object):
 
             #  자동분류미사용
             if not ModelSetting.get_bool('movie_auto_classfy'):
-                if m['drm']: target_path = ModelSetting.get('movie_kodi_path')
+                if strm_type == "kodi": target_path = ModelSetting.get('movie_kodi_path')
                 else: target_path = ModelSetting.get('movie_plex_path')
                 logger.info('get_movie_target_path(): result({p})'.format(p=target_path))
                 return target_path
@@ -1327,3 +1288,135 @@ class LogicOtt(object):
         except Exception as e:
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
+
+    @staticmethod
+    def plex_scanner_thread_function():
+        from plex.model import ModelSetting as PlexModelSetting
+        import datetime
+        prev_section_id = -1
+        while True:
+            try:
+                logger.debug('plex_scanner_thread...started()')
+                server = PlexModelSetting.get('server_url')
+                token = PlexModelSetting.get('server_token')
+                scan_delay = ModelSetting.get_int('plex_scan_delay')
+                scan_min_limit = ModelSetting.get_int('plex_scan_min_limit')
+
+                req = LogicOtt.PlexScannerQueue.get()
+                now = datetime.datetime.now()
+
+                file_path  = req['file_path']
+                section_id = req['section_id']
+                queued_time= req['now']
+
+                timediff = queued_time + timedelta(seconds=scan_delay) - now
+                delay = int(timediff.total_seconds())
+                if delay < 0: delay = 0
+                if delay < scan_min_limit and prev_section_id == section_id: 
+                    logger.debug('스캔명령 전송 스킵...(%d)s', delay)
+                    LogicOtt.PlexScannerQueue.task_done()
+                    continue
+
+                logger.debug('스캔명령 전송 대기...(%d)s', delay)
+                time.sleep(delay)
+
+                logger.debug('스캔명령 전송: server(%s), token(%s), section_id(%s)', server, token, section_id)
+                url = '{server}/library/sections/{section_id}/refresh?X-Plex-Token={token}'.format(server=server, section_id=section_id, token=token)
+                res = requests.get(url)
+                if res.status_code == 200:
+                    prev_section_id = section_id
+                    logger.debug('스캔명령 전송 완료: %s', file_path)
+                    data = {'type':'success', 'msg':'아이템({p}) 추가/스캔요청 완료.'.format(p=file_path)}
+                else:
+                    logger.error('스캔명령 전송 실패: %s', file_path)
+                    data = {'type':'warning', 'msg':'스캔명령 전송 실패! 로그를 확인해주세요'}
+                socketio.emit("notify", data, namespace='/framework', broadcate=True)
+                LogicOtt.PlexScannerQueue.task_done()
+
+            except Exception as e:
+                logger.error('Exception:%s', e)
+                logger.error(traceback.format_exc())
+
+    @staticmethod
+    def remove_show_file(fpath):
+        try:
+            ret = {}
+            if not os.path.isfile(fpath):
+                return {'ret':'error', 'msg':'삭제실패: 존재하지 않는 파일입니다.'}
+
+            for item in LogicOtt.OttShowList:
+                if item['file_path'] == fpath:
+                    LogicOtt.OttShowList.remove(item)
+                    break
+
+            if os.path.isfile(fpath):
+                try:
+                    os.remove(fpath)
+                    data = {'type':'success', 'msg':'파일삭제 성공({f})'.format(f=fpath)}
+                    socketio.emit("notify", data, namespace='/framework', broadcate=True)
+                    logger.debug('파일삭제완료.(%s)', fpath)
+                except:
+                    data = {'type':'warning', 'msg':'파일삭제 오류: 알수없는 오류({f})'.format(f=fpath)}
+                    socketio.emit("notify", data, namespace='/framework', broadcate=True)
+            else:
+                data = {'type':'warning', 'msg':'파일삭제 오류: 존재하지 않는 파일({f})'.format(f=fpath)}
+                socketio.emit("notify", data, namespace='/framework', broadcate=True)
+
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+            return {'ret':'error', 'msg':'삭제실패(e): 로그를 확인해주세요. '}
+
+    @staticmethod
+    def remove_movie_file(code):
+        try:
+            logger.debug('remove_movie_file(): started')
+            ret = {}
+            m = LogicOtt.get_movie_info_from_list(code)
+            if m is None:
+                data = {'type':'warning', 'msg':'정보를 확인할수 없습니다.(code:{c})'.format(c=code)}
+                socketio.emit("notify", data, namespace='/framework', broadcate=True)
+                return
+
+            for x in ['path_info', 'path_plex', 'path_kodi']:
+                if x not in m: continue
+                fpath = m[x]
+                if not os.path.isfile(fpath):
+                    data = {'type':'warning', 'msg':'삭제실패: 존재하지 않는 파일입니다.({p})'.format(p=fpath)}
+                    socketio.emit("notify", data, namespace='/framework', broadcate=True)
+                    continue
+
+                try:
+                    os.remove(fpath)
+                    logger.debug('파일삭제완료: type({t}):path({p})'.format(t=x, p=fpath))
+                    data = {'type':'success', 'msg':'삭제완료- {t}:{p}'.format(t=x, p=fpath)}
+                    socketio.emit("notify", data, namespace='/framework', broadcate=True)
+                except:
+                    data = {'type':'warning', 'msg':'파일삭제 오류: 알수없는 오류({f})'.format(f=fpath)}
+                    socketio.emit("notify", data, namespace='/framework', broadcate=True)
+
+            LogicOtt.OttMovieList.remove(m)
+
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+            return {'ret':'error', 'msg':'삭제실패: 로그를 확인해주세요. '}
+
+    @staticmethod
+    def file_remove_thread_function():
+        while True:
+            try:
+                logger.debug('file_remove_thread...started()')
+                req = LogicOtt.FileRemoveQueue.get()
+
+                if req['type'] == 'show':   # show
+                    LogicOtt.remove_show_file(req['path'])
+                else:                       # movie
+                    code = req['code']
+                    LogicOtt.remove_movie_file(req['code'])
+                LogicOtt.FileRemoveQueue.task_done()
+
+            except Exception as e:
+                logger.error('Exception:%s', e)
+                logger.error(traceback.format_exc())
+
