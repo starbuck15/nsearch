@@ -309,6 +309,7 @@ class LogicOtt(object):
         data ={'type':'success', 'msg':'파일생성완료({p}): 스캔명령전송대기중({t}s)'.format(p=target_path, t=ModelSetting.get('plex_scan_delay'))}
         socketio.emit("notify", data, namespace='/framework', broadcate=True)
 
+<<<<<<< HEAD
         # plex scan
         LogicOtt.do_scan_plex(section_id, target_path)
         logger.debug('Thread ended:do_show_strm_proc()')
@@ -320,6 +321,16 @@ class LogicOtt(object):
         m = None
         m = LogicOtt.get_movie_info_from_search_result(code)
         #logger.debug(json.dumps(m, indent=2))
+=======
+        cnt = 0
+        while True:
+            if cnt > 30: break
+            logger.debug('스캔명령 전송 대기...')
+            time.sleep(ModelSetting.get_int('plex_scan_delay'))
+            cnt += 1
+            if os.path.isfile(target_path):
+                break
+>>>>>>> 2993888cd1f4dcbc3b9f3bbd789a72279c559e26
 
         if m is None:
             logger.warning('메타데이터 조회 실패(%s)', code)
