@@ -14,17 +14,17 @@ import json
 import requests
 import lxml.html
 import glob
-try:
-    import pathlib
-except ImportError:
-    os.system("{} install pathlib".format(app.config['config']['pip']))
-    import pathlib
-
 # sjva 공용
 from framework import app, db, scheduler, path_app_root, celery, socketio
 from framework.job import Job
 from framework.util import Util
 from framework import py_urllib
+
+try:
+    import pathlib
+except ImportError:
+    os.system("{} install pathlib".format(app.config['config']['pip']))
+    import pathlib
 
 # 패키지
 from .plugin import logger, package_name
