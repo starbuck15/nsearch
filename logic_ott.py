@@ -13,6 +13,12 @@ import re
 import json
 import requests
 import lxml.html
+import glob
+try:
+    import pathlib
+except ImportError:
+    os.system("{} install pathlib".format(app.config['config']['pip']))
+    import pathlib
 
 # sjva 공용
 from framework import app, db, scheduler, path_app_root, celery, socketio
@@ -32,6 +38,13 @@ class LogicOtt(object):
 
     PrevWavveRecentItem = None
     PrevTvingRecentItem = None
+
+    # 영화검색결과 임시 저장용
+    MovieSearchResultCache = []
+
+    # 영화분류 규칙용
+    MovieCountryRule = []
+    MovieGenreRule = []
 
     @staticmethod
     def ott_show_scheduler_function():
@@ -115,7 +128,8 @@ class LogicOtt(object):
         try:
             wavve_list = []
             import framework.wavve.api as Wavve
-            vod_list = Wavve.vod_newcontents(page=1)['list']
+            try: vod_list = Wavve.vod_newcontents(page=1)['list']
+            except TypeError: vod_list = []
             for vod in vod_list:
                 item = dict()
                 item['title'] = LogicOtt.change_text_for_use_filename(vod['programtitle'])
@@ -148,8 +162,8 @@ class LogicOtt(object):
 
             logger.debug('[schedule] wavve: recent vod items(processed):{n}'.format(n=len(new_list)))
             return new_list
-        except Exception as exception:
-            logger.error('Exception:%s', exception)
+        except Exception as e:
+            logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
 
     @staticmethod
@@ -198,8 +212,8 @@ class LogicOtt(object):
 
             logger.debug('[schedule] tving: recent vod items(processed):{n}'.format(n=len(new_list)))
             return new_list
-        except Exception as exception:
-            logger.error('Exception:%s', exception)
+        except Exception as e:
+            logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
 
     @staticmethod
@@ -208,8 +222,8 @@ class LogicOtt(object):
             wavve_list = LogicOtt.get_recent_wavve_list()
             tving_list = LogicOtt.get_recent_tving_list()
             return wavve_list + tving_list
-        except Exception as exception:
-            logger.error('Exception:%s', exception)
+        except Exception as e:
+            logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
 
     @staticmethod
@@ -240,66 +254,110 @@ class LogicOtt(object):
         try:
             import re
             return re.sub('[\\/:*?\"<>|\[\]]', '', text).strip()
-        except Exception as exception:
-            logger.error('Exception:%s', exception)
+        except Exception as e:
+            logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
 
     @staticmethod
-    def do_strm_proc(ctype, target_path, section_id):
-        logger.debug('Thread started:do_strm_proc()')
+    def do_scan_plex(section_id, target_path):
+        try:
+            cnt = 0
+            while True:
+                if cnt > 30: break
+                cnt += 1
+                logger.debug('스캔명령 전송 대기...(%d)', cnt)
+                time.sleep(ModelSetting.get_int('plex_scan_delay'))
+                if os.path.isfile(target_path): break
+    
+            from plex.model import ModelSetting as PlexModelSetting
+            server = PlexModelSetting.get('server_url')
+            token = PlexModelSetting.get('server_token')
+            logger.debug('스캔명령 전송: server(%s), token(%s), section_id(%s)', server, token, section_id)
+            url = '{server}/library/sections/{section_id}/refresh?X-Plex-Token={token}'.format(server=server, section_id=section_id, token=token)
+    
+            res = requests.get(url)
+            if res.status_code == 200:
+                logger.debug('스캔명령 전송 완료: %s', target_path)
+                data = {'type':'success', 'msg':'아이템({p}) 추가/스캔요청 완료.'.format(p=target_path)}
+            else:
+                logger.error('스캔명령 전송 실패: %s', target_path)
+                data = {'type':'warning', 'msg':'스캔명령 전송 실패! 로그를 확인해주세요'}
+            socketio.emit("notify", data, namespace='/framework', broadcate=True)
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
+
+    @staticmethod
+    def do_show_strm_proc(ctype, target_path, section_id):
+        logger.debug('Thread started:do_show_strm_proc()')
 
         title = os.path.splitext(os.path.basename(target_path))[0]
-
-        if ctype == 'show': # TV show ott 
-            daum_info = LogicOtt.get_daum_tv_info(title)
-            if daum_info is None:
-                logger.warning('다음 메타데이터 조회 실패(%s), OTT조회 시도', title)
-                daum_info = LogicOtt.get_ott_show_info(title)
-
-            if daum_info is None:
+        info = LogicOtt.get_daum_tv_info(title)
+        if info is None:
+            logger.warning('다음 메타데이터 조회 실패(%s), OTT조회 시도', title)
+            info = LogicOtt.get_ott_show_info(title)
+            if info is None:
                 logger.warning('OTT 메타데이터 조회 실패(%s)', title)
                 data ={'type':'warning', 'msg':'메타데이터 조회 실패({t})'.format(t=title)}
                 socketio.emit("notify", data, namespace='/framework', broadcate=True)
                 return
-        else: # Movie ott
-            daum_info = {'movie':'TODO'}
 
         # 파일생성: 최초
-        LogicOtt.save_dauminfo_to_file(target_path, daum_info)
+        LogicOtt.save_dauminfo_to_file(target_path, info)
         logger.debug('strm 파일 생성완료(%s)', target_path)
         data ={'type':'success', 'msg':'파일생성완료({p}): 스캔명령전송대기중({t}s)'.format(p=target_path, t=ModelSetting.get('plex_scan_delay'))}
         socketio.emit("notify", data, namespace='/framework', broadcate=True)
 
-        cnt = 0
-        while True:
-            if cnt > 30: break
-            logger.debug('스캔명령 전송 대기...')
-            time.sleep(ModelSetting.get_int('plex_scan_delay'))
-	    cnt += 1
-            if os.path.isfile(target_path):
-                break
-
-        from plex.model import ModelSetting as PlexModelSetting
-        server = PlexModelSetting.get('server_url')
-        token = PlexModelSetting.get('server_token')
-        logger.debug('스캔명령 전송: server(%s), token(%s), section_id(%s)', server, token, section_id)
-        url = '{server}/library/sections/{section_id}/refresh?X-Plex-Token={token}'.format(server=server, section_id=section_id, token=token)
-
-        res = requests.get(url)
-        if res.status_code == 200:
-            logger.debug('스캔명령 전송 완료: %s', target_path)
-            data = {'type':'success', 'msg':'아이템({p}) 추가/스캔요청 완료.'.format(p=target_path)}
-        else:
-            logger.error('스캔명령 전송 실패: %s', target_path)
-            data = {'type':'warning', 'msg':'스캔명령 전송 실패! 로그를 확인해주세요'}
-        socketio.emit("notify", data, namespace='/framework', broadcate=True)
+        # plex scan
+        LogicOtt.do_scan_plex(section_id, target_path)
+        logger.debug('Thread ended:do_show_strm_proc()')
 
     @staticmethod
-    def create_strm(ctype, title):
+    def do_movie_strm_proc(code, strm_type, target_path, section_id):
+        logger.debug('Thread started:do_movie_strm_proc(): type: %s, path:%s', strm_type, target_path)
+
+        m = None
+        m = LogicOtt.get_movie_info_from_search_result(code)
+        #logger.debug(json.dumps(m, indent=2))
+
+        if m is None:
+            logger.warning('메타데이터 조회 실패(%s)', code)
+            data ={'type':'warning', 'msg':'메타데이터 조회 실패({c})'.format(c=code)}
+            socketio.emit("notify", data, namespace='/framework', broadcate=True)
+            return
+
+        # strm 파일 생성
+        if 'strm_type' not in m: m['strm_type'] = strm_type
+        elif m['strm_type'] != strm_type: m['strm_type'] = 'all'
+
+        LogicOtt.save_data_to_file(target_path, m['stream_url'])
+        # info 파일 생성
+        if strm_type == "plex": m['path_plex'] = target_path
+        else: m['path_kodi'] = target_path
+        LogicOtt.append_item_to_movie_list(strm_type, m)
+
+        logger.debug('strm 파일 생성완료(%s)', target_path)
+        if strm_type == 'plex':
+            data ={'type':'success', 'msg':'파일생성완료({p}): 스캔명령전송대기중({t}s)'.format(p=target_path, t=ModelSetting.get('plex_scan_delay'))}
+        else:
+            data ={'type':'success', 'msg':'파일생성완료({p}): 라이브러리를 업데이트해주세요.'.format(p=target_path)}
+        socketio.emit("notify", data, namespace='/framework', broadcate=True)
+
+        if strm_type == 'plex':
+            LogicOtt.do_scan_plex(section_id, target_path)
+        logger.debug('Thread ended:do_movie_strm_proc()')
+
+    @staticmethod
+    def create_show_strm(req):
         try:
+            code = None
+            site = None
+
+            title = req.form['title']
+            ctype = req.form['ctype']
             logger.debug('strm 생성 요청하기(유형:%s, 제목:%s)', ctype, title)
-            if ctype == 'show': library_path = ModelSetting.get('show_library_path')
-            else: library_path = ModelSetting.get('movie_library_path')
+            library_path = ModelSetting.get('show_library_path')
 
             if not os.path.isdir(library_path):
                 logger.error('show_library_path error(%s)', library_path)
@@ -322,7 +380,7 @@ class LogicOtt(object):
 
             def func():
                 time.sleep(1)
-                LogicOtt.do_strm_proc(ctype, target_path, section_id)
+                LogicOtt.do_show_strm_proc(ctype, target_path, section_id)
 
             thread = threading.Thread(target=func, args=())
             thread.setDaemon(True)
@@ -336,13 +394,73 @@ class LogicOtt(object):
             return {'ret':'error', 'data': '에러발생, 로그를 확인해주세요'}
 
     @staticmethod
-    def get_extra_meta(fpath, daum_info):
+    def create_movie_strm(req):
         try:
-            with open(fpath, 'w') as f:
-                json.dump(daum_info, f, indent=2)
+            ctype = req.form['ctype']
+            code = req.form['code']
+            stype = req.form['type']
 
-        except Exception as exception:
-            logger.error('Exception:%s', exception)
+            strm_types = ['kodi', 'plex'] if stype == 'all' else [stype]
+
+            for strm_type in strm_types:
+                library_path = LogicOtt.get_movie_target_path(code, strm_type)
+                if library_path == None:
+                    logger.debug('라이브러리 경로 획득 실패: ctype:%s, code:%s)', ctype, code)
+                    return {'ret':'error', 'data':'라이브러리 경로 획득 실패, 로그를 확인하세요.'}
+
+                if not os.path.isdir(library_path): os.makedirs(library_path)
+                logger.debug('strm 생성 요청하기(유형:%s, code:%s)', strm_type, code)
+
+                filename = LogicOtt.get_movie_target_fname(code)
+                if filename == None:
+                    return {'ret':'error', 'data':'파일이름을 얻어오지 못했습니다.'}
+    
+                target_path = os.path.join(library_path, filename + '.strm')
+                logger.debug('classyfied file-path: {p}'.format(p=target_path))
+
+                if strm_type == 'plex':
+                    plex_path = LogicOtt.get_plex_path(library_path)
+                    logger.debug('local_path(%s), plex_path(%s)', library_path, plex_path)
+
+                    import plex
+                    section_id = plex.LogicNormal.get_section_id_by_filepath(plex_path)
+                    if section_id == -1:
+                        return {'ret':'error', 'data':'Plex경로오류! \"{p}\" 경로를 확인해 주세요'.format(p=plex_path)}
+
+                    logger.debug('get_section_id: path(%s), section_id(%s)', library_path, section_id)
+
+                    def func():
+                        time.sleep(1)
+                        LogicOtt.do_movie_strm_proc(code, strm_type, target_path, section_id)
+
+                    thread = threading.Thread(target=func, args=())
+                    thread.setDaemon(True)
+                    thread.start()
+
+                    logger.debug('%s 추가 요청 완료', target_path)
+                else:
+                    LogicOtt.do_movie_strm_proc(code, strm_type, target_path, -1)
+                    logger.debug('%s 추가 완료', target_path)
+ 
+            return {'ret':'success', 'data':'{p} 추가요청 완료'.format(p=target_path)}
+
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+            return {'ret':'error', 'data': '에러발생, 로그를 확인해주세요'}
+
+    @staticmethod
+    def save_data_to_file(fpath, data, is_json=False):
+        try:
+            if not os.path.isdir(os.path.dirname(fpath)):
+                os.mkdirs(os.path.dirname(fpath))
+
+            with open(fpath, 'w') as f:
+                if is_json: json.dump(data, f, indent=2)
+                else: f.write(data)
+
+        except Exception as e:
+            logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
 
     @staticmethod
@@ -355,8 +473,46 @@ class LogicOtt(object):
 
             LogicOtt.OttShowList.append(newitem)
 
-        except Exception as exception:
-            logger.error('Exception:%s', exception)
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
+    @staticmethod
+    def append_item_to_movie_list(strm_type, newitem):
+        try:
+            file_update = False
+            """"
+            if 'strm_type' not in newitem: 
+                newitem['strm_type'] = strm_type
+                file_update = True
+
+            """
+            m = LogicOtt.get_movie_info_from_list(newitem['code'])
+            if m is None:
+                LogicOtt.OttMovieList.append(newitem)
+                file_update = True
+            """
+            else:
+                if m['strm_type'] != newitem['strm_type']:
+                    m['strm_type'] = 'all'
+                    newitem['strm_type'] = 'all'
+                    file_update = True
+            """
+
+            fname = newitem['code'] + '.info'
+            fpath = os.path.join(ModelSetting.get('movie_list_path'), fname)
+            newitem['path_info'] = fpath
+            if not os.path.exists(fpath) or file_update:
+                logger.debug('append item to movie list: info-file(%s)', fpath)
+                LogicOtt.save_data_to_file(fpath, newitem, is_json=True)
+
+            if os.path.exists(fpath):
+                old = LogicOtt.load_movie_info_from_file(fpath)
+                if sorted(old.items()) != sorted(newitem.items()):
+                    LogicOtt.save_data_to_file(fpath, newitem, is_json=True)
+
+        except Exception as e:
+            logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
 
     @staticmethod
@@ -385,8 +541,8 @@ class LogicOtt(object):
 
             LogicOtt.append_item_to_show_list(item)
 
-        except Exception as exception:
-            logger.error('Exception:%s', exception)
+        except Exception as e:
+            logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
 
     @staticmethod
@@ -398,8 +554,8 @@ class LogicOtt(object):
             for k in ['status', 'genre', 'code', 'poster_url']:
                 if k not in daum_info: return None
             return daum_info
-        except Exception as exception:
-            logger.error('Exception:%s', exception)
+        except Exception as e:
+            logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
 
     @staticmethod
@@ -434,8 +590,8 @@ class LogicOtt(object):
 
             return None
 
-        except Exception as exception:
-            logger.error('Exception:%s', exception)
+        except Exception as e:
+            logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
 
     @staticmethod
@@ -502,8 +658,8 @@ class LogicOtt(object):
 
             return daum_info
 
-        except Exception as exception:
-            logger.error('Exception:%s', exception)
+        except Exception as e:
+            logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
             return None
 
@@ -537,9 +693,57 @@ class LogicOtt(object):
             info['genre'] = r['genre'][0]
             return info
 
-        except Exception as exception:
-            logger.error('Exception:%s', exception)
+        except Exception as e:
+            logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
+
+    @staticmethod
+    def load_movie_info_from_file(fpath):
+        try:
+            with open(fpath, 'r') as f:
+                info = json.load(f)
+            return info
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
+    @staticmethod
+    def is_info(fpath):
+        info_exts = ['.info']
+        if os.path.isdir(fpath): return False
+        if os.path.splitext(fpath)[1] in info_exts: return True
+        return False
+    
+    @staticmethod
+    def is_strm(fpath):
+        info_exts = ['.strm']
+        if os.path.isdir(fpath): return False
+        if os.path.splitext(fpath)[1] in info_exts: return True
+        return False
+    
+    @staticmethod
+    def load_movie_items():
+        try:
+            logger.info('load_movie_items(): started')
+            list_path = ModelSetting.get('movie_list_path')
+
+            if not os.path.isdir(list_path):
+                os.makedirs(list_path)
+
+            p_temp = pathlib.Path(list_path)
+            strm_list = [str(f) for f in list(p_temp.glob('**/*')) if LogicOtt.is_info(str(f))]
+
+            for file_path in strm_list:
+                fname = os.path.basename(file_path)
+                info = LogicOtt.load_movie_info_from_file(file_path)
+                LogicOtt.OttMovieList.append(info)
+
+            logger.info('load_movieitems(): (%d) items loaded', len(LogicOtt.OttMovieList))
+
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
 
     @staticmethod
     def load_show_items():
@@ -553,8 +757,10 @@ class LogicOtt(object):
                 logger.error('failed to load show items')
                 time.sleep(0.5)
 
-            for fname in os.listdir(library_path):
-                file_path = os.path.join(library_path, fname)
+            p_temp = pathlib.Path(library_path)
+            strm_list = [str(f) for f in list(p_temp.glob('**/*')) if LogicOtt.is_strm(str(f))]
+            for file_path in strm_list:
+                fname = os.path.basename(file_path)
                 if not os.path.isfile(file_path):
                     continue
 
@@ -570,7 +776,6 @@ class LogicOtt(object):
                 item['file_path'] = file_path
                 item['plex_path'] = LogicOtt.get_plex_path(file_path)
 
-
                 daum_info = LogicOtt.get_daum_tv_info(title, fpath=file_path)
                 item['status'] = daum_info['status']
                 item['code'] = daum_info['code']
@@ -583,8 +788,8 @@ class LogicOtt(object):
 
             logger.info('load_show_items(): %d items loaded', len(LogicOtt.OttShowList))
 
-        except Exception as exception:
-            logger.error('Exception:%s', exception)
+        except Exception as e:
+            logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
 
     @staticmethod
@@ -670,58 +875,60 @@ class LogicOtt(object):
             ret['ret'] = 'success'
             return ret
 
-        except Exception as exception:
-            logger.error('Exception:%s', exception)
+        except Exception as e:
+            logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
 
     @staticmethod
     def plexott_movie_list(req):
         try:
-            from datetime import datetime as dt
-
-            library_path = ModelSetting.get('show_library_path')
+            logger.debug(req.form)
             ret = {}
-            item_list = []
-            if not os.path.isdir(library_path):
-                return {'ret':'error', 'msg':'check tv-ott-path setting in nsearh plugin.'}
+            ret_list = []
 
-            for fname in os.listdir(library_path):
-                file_path = os.path.join(library_path, fname)
-                if not os.path.isfile(file_path):
-                    continue
+            strm_type = req.form['strm_type']
+            country = req.form['country']
+            #genre = req.form['genre']
+            search_word = req.form['search_word']
 
-                stat = os.stat(file_path)
+            # STRM type
+            strm_list = []
+            if strm_type == 'all':
+                strm_list =  LogicOtt.OttMovieList[:]
+            else:
+                for x in LogicOtt.OttMovieList:
+                    if x['strm_type'] == strm_type or x['strm_type'] == 'all':
+                        strm_list.append(x)
 
-                title = os.path.splitext(fname)[0]
-                ctime = stat.st_ctime
-                mtime = stat.st_mtime
+            # search_word
+            if search_word != '':
+                search_list = []
+                for s in strm_list:
+                    if s['title'].find(search_word) != -1:
+                        search_list.append(s)
+            else:
+                search_list = strm_list
 
-                item = {}
-                item['title'] = title
-                item['ctime'] = dt.fromtimestamp(ctime).strftime('%Y-%m-%d %H:%M:%S')
-                item['mtime'] = dt.fromtimestamp(mtime).strftime('%Y-%m-%d %H:%M:%S')
-                item['file_path'] = file_path
-                item['plex_path'] = LogicOtt.get_plex_path(file_path)
+            # TODO:country
+            country_list = []
+            if country == 'all':
+                country_list = search_list[:]
+            else:
+                for x in search_list:
+                    if country == 'kor':
+                        if x['country'] == u'한국': country_list.append(x)
+                    else: # oversea
+                        if x['country'] != u'한국': country_list.append(x)
 
-
-                daum_info = LogicOtt.get_daum_tv_info(title, fpath=file_path)
-                item['status'] = daum_info['status']
-                item['last_episode_date'] = daum_info['last_episode_date']
-                item['last_episode_no'] = daum_info['last_episode_no']
-                item['episode_count'] = daum_info['episode_count']
-                item['poster_url'] = daum_info['poster_url']
-                item['start_date'] = daum_info['start_date']
-                if item['status'] == 1:
-                    item['broadcast_info'] = daum_info['broadcast_info']
-
-                item_list.append(item)
+            # TODO:genre
+            ret_list = country_list
 
             ret['ret'] = 'success'
-            ret['list'] = item_list
+            ret['list'] = ret_list
             return ret
 
-        except Exception as exception:
-            logger.error('Exception:%s', exception)
+        except Exception as e:
+            logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
 
     @staticmethod
@@ -756,8 +963,8 @@ class LogicOtt(object):
             data = {'type':'success', 'msg':'메타데이터 갱신요청완료({n}건)'.format(n=count)}
             socketio.emit("notify", data, namespace='/framework', broadcate=True)
 
-        except Exception as exception:
-            logger.error('Exception:%s', exception)
+        except Exception as e:
+            logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
             data = {'type':'warning', 'msg':'메타갱신실패, 로그를 확인해주세요'}
             socketio.emit("notify", data, namespace='/framework', broadcate=True)
@@ -768,39 +975,7 @@ class LogicOtt(object):
             logger.debug(req.form)
             ret = {}
             req_type = None
-            if 'list' not in req.form.keys(): req_type = 'all'
-            else: title_list = req.form['list'].split(u',')
 
-            movie_list = LogicOtt.OttMovieList[:]
-            target_list = []
-
-            if req_type == 'all':
-                target_list = movie_list
-            else:
-                for item in movie_list:
-                    if item['title'] in title_list:
-                        target_list.append(item)
-
-            def func():
-                time.sleep(3)
-                LogicOtt.do_metadata_refresh(target_list)
-
-            thread = threading.Thread(target=func, args=())
-            thread.setDaemon(True)
-            thread.start()
-
-            ret = {'ret':'success', 'msg':'{n}개의 아이템 메타업테이트 요청 완료'.format(n=len(target_list))}
-            return ret
-        except Exception as exception:
-            logger.error('Exception:%s', exception)
-            logger.error(traceback.format_exc())
-
-    @staticmethod
-    def movie_metadata_refresh(req):
-        try:
-            logger.debug(req.form)
-            ret = {}
-            req_type = None
             if 'list' not in req.form.keys(): req_type = 'all'
             else: title_list = req.form['list'].split(u',')
 
@@ -808,7 +983,7 @@ class LogicOtt(object):
             target_list = []
 
             if req_type == 'all':
-                target_list = show_list
+                target_list = show_list[:]
             else:
                 for item in show_list:
                     if item['title'] in title_list:
@@ -824,19 +999,19 @@ class LogicOtt(object):
 
             ret = {'ret':'success', 'msg':'{n}개의 아이템 메타업테이트 요청 완료'.format(n=len(target_list))}
             return ret
-        except Exception as exception:
-            logger.error('Exception:%s', exception)
+        except Exception as e:
+            logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
 
     @staticmethod
     def do_remove_file(fpath):
         try:
-            os.remove(fpath)
+            if os.path.isfile(fpath): os.remove(fpath)
             data = {'type':'success', 'msg':'파일삭제 성공({f})'.format(f=fpath)}
             socketio.emit("notify", data, namespace='/framework', broadcate=True)
 
-        except Exception as exception:
-            logger.error('Exception:%s', exception)
+        except Exception as e:
+            logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
             data = {'type':'warning', 'msg':'파일삭제실패, 로그를 확인해주세요'}
             socketio.emit("notify", data, namespace='/framework', broadcate=True)
@@ -866,84 +1041,149 @@ class LogicOtt(object):
 
             return {'ret':'error', 'msg':'리스트에 정보가 존재하지 않습니다.'}
 
-        except Exception as exception:
-            logger.error('Exception:%s', exception)
+        except Exception as e:
+            logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
-            return {'ret':'error', 'msg':'삭제실패(exception): 로그를 확인해주세요. '}
+            return {'ret':'error', 'msg':'삭제실패(e): 로그를 확인해주세요. '}
+
+    @staticmethod
+    def remove_file_by_code(code):
+        try:
+            ret = {}
+            m = LogicOtt.get_movie_info_from_list(code)
+            if m is None:
+                return {'ret':'error', 'msg':'정보를 확인할수 없습니다.(code:{c})'.format(c=code)}
+
+            for x in ['path_info', 'path_plex', 'path_kodi']:
+                if x not in m: continue
+                fpath = m[x]
+                if not os.path.isfile(fpath):
+                    return {'ret':'error', 'msg':'삭제실패: 존재하지 않는 파일입니다.({p})'.format(p=fpath)}
+
+                def func():
+                    time.sleep(2)
+                    LogicOtt.do_remove_file(fpath)
+
+                thread = threading.Thread(target=func, args=())
+                thread.setDaemon(True)
+                thread.start()
+
+            logger.debug('파일을 삭제요청 완료.(%s)', fpath)
+            LogicOtt.OttMovieList.remove(m)
+
+            ret = {'ret':'success', 'msg':'파일삭제 요청을 완료하였습니다.'}
+            return ret
+
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+            return {'ret':'error', 'msg':'삭제실패: 로그를 확인해주세요. '}
+
+    @staticmethod
+    def movie_info_map(info):
+        streams = ['wavve_stream', 'tving_stream']
+        m = {}
+        m['code'] = info['code']
+        m['site'] = info['site']
+        m['title'] = info['title']
+        m['year'] = info['year'] if info['year'] != 1900 else int(info['premiered'][:4])
+        for art in info['art']:
+            if art['aspect'] == 'poster':
+                m['poster_url'] = art['value']
+                break
+        m['genre'] = info['genre'][0]
+        m['mpaa'] = info['mpaa']
+        m['country'] = info['country'][0]
+        m['runtime'] = info['runtime']
+        m['title_en'] = info['extra_info']['title_en']
+        m['director'] = u', '.join(info['director'])
+
+        actor_list = []
+        for actor in info['actor']:
+            actor_list.append(actor['name'])
+
+        if len(actor_list) == 0: m['actor'] = ''
+        else: m['actor'] = u', '.join(actor_list)
+
+        # extra info
+        for stream in streams:
+            if stream in info['extra_info']:
+                m['drm'] = info['extra_info'][stream]['drm']
+                if 'request_streaming_url' in info['extra_info'][stream]:
+                    m['stream_url'] = info['extra_info'][stream]['request_streaming_url'] 
+                if 'kodi' in info['extra_info'][stream]:
+                    m['stream_url'] = info['extra_info'][stream]['kodi'] 
+                m['permission'] = True
+                break
+
+        if 'permission' not in m: m['permission'] = False
+        return m
 
     @staticmethod
     def movie_search_tving(keyword):
         try:
             tlist = []
-            import framework.tving.api as Tving
-            from metadata.logic_movie import LogicMovie
-            LogicMovie = LogicMovie(LogicMovie)
 
-            l = Tving.search_tv(keyword)
-            if not l: return []
-            for r in l:
-                m = dict()
-                """
-                info = dict()
-                # for tving [블라블라] 제목 -> 제목
-                title = re.sub('\[.+\]', '', r['mast_nm']).strip()
-                year = int(r['broad_dt'][:4]) if 'broad_dt' in r else None
+            from lib_metadata import SiteTvingMovie
+            ret = SiteTvingMovie.search(keyword)
 
-                info = LogicMovie.search(title, year)[0]
-                info['vod_site'] = 'tving'
-                """
-                m['vod_site'] = 'tving'
-                m['title'] = r['mast_nm']
-                m['code'] = r['mast_cd']
-                m['year'] = r['broad_dt'][:4]
-                m['poster_url'] = 'https://image.tving.com' + r['web_url']
+            if ret['ret'] != 'success':
+                logger.warning('[tving] {k}에 대한 검색결과가 없습니다.'.format(k=keyword))
+                return []
+            #logger.debug(json.dumps(ret['data'], indent=2))
 
-                tlist.append(m)
-                #tlist.append(info)
+            for m in ret['data']:
+                if m['score'] < ModelSetting.get_int('movie_search_score_limit'): continue
+                code = m['code']
+                title = m['title']
+
+                r = SiteTvingMovie.info(code)
+                if r['ret'] == "success": 
+                    #logger.debug(json.dumps(r['data'], indent=2))
+                    movie_info = LogicOtt.movie_info_map(r['data'])
+                    if ModelSetting.get_bool('movie_search_only_possible'):
+                        if movie_info['permission'] == True:
+                            tlist.append(movie_info)
+                else: 
+                    logger.warning('[tving] {t}에 대한 검색결과이 실패하였습니다.(code:{c})'.format(t=title, c=code))
 
             return tlist
 
-        except Exception as exception:
-            logger.error('Exception:%s', exception)
+        except Exception as e:
+            logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
 
     @staticmethod
     def movie_search_wavve(keyword):
         try:
             wlist = []
-            import framework.wavve.api as Wavve
-            from metadata.logic_movie import LogicMovie
-            LogicMovie = LogicMovie(LogicMovie)
-            l = Wavve.search_movie(keyword)['list']
-            # TODO: 에러처리
-            if len(l) == 0: return []
-            for i in l:
-                movieid = i['movieid']
-                r = Wavve.movie_contents_movieid(movieid)
-                """
-                info = dict()
-                title = re.sub('\(.+\)', '', r['title']).strip()
-                try: year = int(r['releasedate'][:4]) if 'releasedate' in r else None
-                except: year = None
-                logger.debug('title:{t}, year:{y}'.format(t=title, y=year))
 
-                ret = LogicMovie.search(title, year)
-                if not ret or len(ret)==0: continue
-                info['vod_site'] = 'wavve'
-                """
-                m = dict()
-                m['vod_site'] = 'tving'
-                m['title'] = r['title']
-                m['code'] = r['movieid']
-                m['year'] = r['releasedate'][:4] if 'releasedate' in r else '-'
-                m['poster_url'] = 'https://' + r['image']
-                wlist.append(m)
-                #wlist.append(info)
+            from lib_metadata import SiteWavveMovie
+            ret = SiteWavveMovie.search(keyword)
+            if ret['ret'] != 'success':
+                logger.warning('[wavve] {k}에 대한 검색결과가 없습니다.'.format(k=keyword))
+                return []
+            #logger.debug(json.dumps(ret['data'], indent=2))
+
+            for m in ret['data']:
+                if m['score'] < ModelSetting.get_int('movie_search_score_limit'): continue
+                code = m['code']
+                title = m['title']
+
+                r = SiteWavveMovie.info(code)
+                if r['ret'] == "success": 
+                    #logger.debug(json.dumps(r['data'], indent=2))
+                    movie_info = LogicOtt.movie_info_map(r['data'])
+                    if ModelSetting.get_bool('movie_search_only_possible'):
+                        if movie_info['permission'] == True:
+                            wlist.append(movie_info)
+                else: 
+                    logger.warning('[wavve] {t}에 대한 검색결과이 실패하였습니다.(code:{c})'.format(t=title, c=code))
 
             return wlist
 
-        except Exception as exception:
-            logger.error('Exception:%s', exception)
+        except Exception as e:
+            logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
 
     @staticmethod
@@ -952,9 +1192,139 @@ class LogicOtt(object):
             tlist = LogicOtt.movie_search_tving(keyword)
             wlist = LogicOtt.movie_search_wavve(keyword)
             movie_list = tlist + wlist
+            LogicOtt.MovieSearchResultCache = movie_list[:]
             return movie_list
 
-        except Exception as exception:
-            logger.error('Exception:%s', exception)
+        except Exception as e:
+            logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
 
+    @staticmethod
+    def get_movie_info_from_search_result(code):
+        try:
+            for m in LogicOtt.MovieSearchResultCache:
+                if m['code'] == code: return m
+
+            return None
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
+    @staticmethod
+    def get_movie_info_from_list(code):
+        try:
+            for m in LogicOtt.OttMovieList:
+                if m['code'] == code: return m
+
+            return None
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
+    @staticmethod
+    def get_movie_target_fname(code):
+        try:
+            m = LogicOtt.get_movie_info_from_search_result(code)
+            if m == None:
+                #TODO: re-search 
+                logger.error('failed to get movie info from cache({c})'.format(c=code))
+                return None
+
+            extras  = {'{country}':'country', '{genre}':'genre', '{rating}':'rating', 
+                    '{code}':'code', '{drm}':'drm', '{mpaa}':'mpaa'}
+            base_format = '{title} ({year})'
+            fname_rule = ModelSetting.get('movie_fname_rule')
+
+            title = LogicOtt.change_text_for_use_filename(m['title'])
+            if fname_rule.find('{year}') != -1:
+                if m['year'] == 1900: base_name = m['title'] 
+                else: base_name = base_format.format(title=m['title'], year=m['year'])
+            else: base_name = title
+
+            extra = []
+            str_extra = ''
+            for k,v in extras.items():
+                if fname_rule.find(k) != -1:
+                    extra.append(str(m[v]))
+
+            if len(extra) > 0: fname = base_name + ' [{extra}]'.format(extra='-'.join(extra))
+            else: fname = base_name
+            return fname
+            
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
+    @staticmethod
+    def get_movie_target_country(info):
+        try:
+            country = None
+            rule_dict = ModelSetting.get_rule_dict('movie_country_rule')
+            default = rule_dict['default']
+            base = ['default','fail']
+            for k, v in rule_dict.items():
+                if k in base: continue
+                if info['country'] in k.split('|'):
+                    country = v
+                    break
+            if country is None: 
+                if default == '{country}': country = info['country']
+                else: country = rule_dict['fail']
+            return country
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
+    @staticmethod
+    def get_movie_target_genre(info):
+        try:
+            genre = None
+            rule_dict = ModelSetting.get_rule_dict('movie_genre_rule')
+            default = rule_dict['default']
+            base = ['default','fail']
+            for k, v in rule_dict.items():
+                if k in base: continue
+                if info['genre'] in k.split('|'):
+                    genre = v
+                    break
+            if genre is None:
+                if default == '{genre}': genre = info['genre']
+                else: genre = rule_dict['fail']
+            return genre
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
+    @staticmethod
+    def get_movie_target_path(code, strm_type):
+        try:
+            m = LogicOtt.get_movie_info_from_search_result(code)
+            if m == None:
+                #TODO: re-search 
+                logger.error('failed to get movie info from cache({c})'.format(c=code))
+                return None
+
+            #  자동분류미사용
+            if not ModelSetting.get_bool('movie_auto_classfy'):
+                if m['drm']: target_path = ModelSetting.get('movie_kodi_path')
+                else: target_path = ModelSetting.get('movie_plex_path')
+                logger.info('get_movie_target_path(): result({p})'.format(p=target_path))
+                return target_path
+
+            # 자동분류 사용
+            base_dir = ModelSetting.get('movie_kodi_path') if strm_type == "kodi" else ModelSetting.get('movie_plex_path')
+
+            target_dir = ModelSetting.get('movie_classfy_rule')
+            genre_dir = LogicOtt.get_movie_target_genre(m)
+            country_dir = LogicOtt.get_movie_target_country(m)
+
+            target_dir = target_dir.replace('{country}', country_dir)
+            target_dir = target_dir.replace('{genre}', genre_dir)
+
+            target_path =  os.path.join(base_dir, target_dir)
+            logger.info('get_movie_target_path(): result({p})'.format(p=target_path))
+            return target_path
+
+        except Exception as e:
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())

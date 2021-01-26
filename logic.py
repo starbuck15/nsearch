@@ -40,19 +40,36 @@ class Logic(object):
         'auto_delete' : 'False',
         
         # added by orial
-        'show_library_path' : '/mnt/gdrive/OTT/TV',
-        'movie_library_path' : '/mnt/gdrive/OTT/MOVIE',
+        # 일반
         'plex_scan_delay' : '60',
         'plex_path_rule' : '',
+        # TV-OTT
         'ott_show_scheduler_auto_start' : 'False', 
         'ott_show_scheduler_interval' : '10', 
-        'meta_update_delay' : '60',     # not use
+        'show_library_path' : '/mnt/gdrive/OTT/TV',
         'meta_update_interval' : '1',
         'meta_update_notify' : 'False',
+
+        # MOVIE-OTT
+        'movie_auto_classfy': 'True',
+        'movie_search_score_limit': '80',
+        'movie_search_only_possible': 'True',
+        'movie_kodi_path'   : u'/mnt/gdrive/OTT/KODI/MOVIE',
+        'movie_plex_path'   : u'/mnt/gdrive/OTT/PLEX/MOVIE',
+        'movie_classfy_rule': u'{country}/{genre}',
+        'movie_country_rule': u'default,해외영화\n한국,국내영화\n일본|중국|홍콩,아시아영화',
+        'movie_genre_rule'  : u'default,기타\n액션|어드벤쳐,액션',
+        'movie_fname_rule'  : u'{title} ({year})',
+        'movie_list_path'   : u'/media/orial/OTT/.movie_list',
+        #'movie_manual_path' : u'/mnt/gdriv/OTT/MOVIE/Manual',
+        #'movie_test_title'  : u'',
 
         # non-ui for schedule
         'prev_wavve_recent_json' : u'',
         'prev_tving_recent_json' : u'',
+
+        #'meta_update_delay' : '60',     # not use
+        #'movie_library_path' : '/mnt/gdrive/OTT/MOVIE',
     }
 
     @staticmethod
@@ -77,6 +94,7 @@ class Logic(object):
 
             # 플러그인 로드시 데이터로드
             LogicOtt.load_show_items()
+            LogicOtt.load_movie_items()
 
             if ModelSetting.get('prev_wavve_recent_json') == u'':
                 LogicOtt.PrevWavveRecentItem = None

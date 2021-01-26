@@ -42,7 +42,7 @@ menu = {
     'category' : 'vod',
     'sub2': {
         'plexott': [
-            ['setting', u'설정'], ['show_list',u'TV목록'],['movie_list', u'영화목록(개발중)']
+            ['setting', u'설정'], ['show_list',u'TV목록'],['movie_list', u'영화목록']
         ]
      }
 }
@@ -100,6 +100,7 @@ def detail(sub):
 @login_required
 def second_menu(sub, sub2):
     try:
+        logger.debug('route: %s %s', sub, sub2)
         if sub == 'popular':
             if sub2 == 'setting':
                 arg = ModelSetting.to_dict()
@@ -310,9 +311,10 @@ def ajax(sub):
 
         elif sub == 'create_strm':
             try:
-                ctype = request.form['ctype']
-                title = request.form['title']
-                ret = LogicOtt.create_strm(ctype, title)
+                if request.form['ctype'] == 'show':
+                    ret = LogicOtt.create_show_strm(request)
+                else: #movie
+                    ret = LogicOtt.create_movie_strm(request)
                 return jsonify(ret)
             except Exception as e:
                 logger.error('Exception:%s', e)
@@ -348,8 +350,6 @@ def ajax(sub):
                 ctype = request.form['ctype']
                 if ctype == 'show':
                     ret = LogicOtt.show_metadata_refresh(request)
-                else: #movie
-                    ret = LogicOtt.movie_metadata_refresh(request)
                 return jsonify(ret)
             except Exception as e:
                 logger.error('Exception:%s', e)
@@ -358,8 +358,13 @@ def ajax(sub):
                 return jsonify(ret)
         elif sub == 'file_remove':
             try:
-                fpath = request.form['fpath']
-                ret = LogicOtt.remove_file(fpath)
+                # for TV
+                if 'fpath' in request.form:
+                    fpath = request.form['fpath']
+                    ret = LogicOtt.remove_file(fpath)
+                else: # movie
+                    code = request.form['code']
+                    ret = LogicOtt.remove_file_by_code(code)
                 return jsonify(ret)
             except Exception as e:
                 logger.error('Exception:%s', e)
@@ -370,7 +375,6 @@ def ajax(sub):
     except Exception as e: 
         logger.error('Exception:%s', e)
         logger.error(traceback.format_exc())
-
 
 #########################################################
 # API

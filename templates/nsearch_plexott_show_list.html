@@ -71,7 +71,9 @@ $("#reset_btn").click(function(e) {
 $("body").on('click', '#meta_refresh_btn', function(e){
   e.preventDefault();
   var title = $(this).data('title');
+  var formData = get_formdata('#form_search');
   formData += '&list=' + title;
+  formData += '&ctype=show';
   $.ajax({
     url: '/' + package_name + '/ajax/meta_refresh',
     type: "POST", 
@@ -98,6 +100,8 @@ $("body").on('click', '#all_meta_refresh_btn', function(e){
 });
 
 function all_meta_refresh() {
+  var formData = get_formdata('#form_search');
+  formData += '&ctype=show';
   $.ajax({
     url: '/' + package_name + '/ajax/meta_refresh',
     type: "POST", 
@@ -145,6 +149,7 @@ function file_remove() {
 $("body").on('click', '#partial_meta_refresh_btn', function(e){
   e.preventDefault();
   var data = current_data;
+  var formData = get_formdata('#form_search');
   str = '';
   for (i in data) {
     if (data[i].status == 1) {

@@ -127,6 +127,21 @@ class ModelSetting(db.Model):
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
 
+    @staticmethod
+    def get_rule_dict(key):
+        try:
+            rule_dict = {}
+            value = ModelSetting.get(key)
+            values = [x.strip().replace(' ', '').strip() for x in value.split('\n')]
+            values = Util.get_list_except_empty(values)
+            for x in values:
+                k, v = [y.strip().replace(' ','').strip() for y in x.split(',')]
+                rule_dict[k] = v
+            return rule_dict
+        except Exception as e: 
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+
 class ModelAutoHistory(db.Model):
     __tablename__ = 'plugin_%s_auto_history' % package_name
     __table_args__ = {'mysql_collate': 'utf8_general_ci'}
