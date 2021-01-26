@@ -38,7 +38,7 @@ blueprint = Blueprint(package_name, package_name, url_prefix='/%s' %  package_na
 menu = {
     'main' : [package_name, u'검색'],
     'sub' : [
-        ['search', u'검색'], ['popular', u'인기 프로그램'], ['whitelist', u'화이트리스트'], ['plexott', 'OTT관리'],['log', u'로그']
+        ['search', u'검색'], ['popular', u'인기 프로그램'], ['whitelist', u'화이트리스트'], ['plexott', u'OTT관리'],['log', u'로그']
     ],
     'category' : 'vod',
     'sub2': {
