@@ -45,6 +45,7 @@ class LogicWhitelist(object):
             auto_priority = ModelSetting.get_int('auto_priority')
             auto_delete = ModelSetting.get_bool('auto_delete')
             auto_download = ModelSetting.get_bool('auto_download')
+            auto_sync_w_bot_ktv = ModelSetting.get_bool('auto_sync_w_bot_ktv')
             
             if auto_wavve_whitelist_active and auto_tving_whitelist_active:
                 auto_wavve_whitelist, auto_wavve_total = LogicWhitelist.wavve_get_popular_list(auto_wavve_whitelist_limit)
@@ -123,6 +124,9 @@ class LogicWhitelist(object):
 
                             if auto_download:
                                 LogicWhitelist.tving_download(title)
+
+            if auto_sync_w_bot_ktv and (auto_wavve_whitelist_active or auto_tving_whitelist_active):
+                LogicWhitelist.sync_w_bot_ktv()
 
             logger.debug('=======================================')
         except Exception as e: 
@@ -453,6 +457,28 @@ class LogicWhitelist(object):
                 logger.info('tving_download_program:%s (%s)', program, episode_code)
 
             return True
+        except Exception as e: 
+            logger.error('Exception:%s', e)
+            logger.error(traceback.format_exc())
+            return False
+
+    #########################################################
+    @staticmethod
+    def sync_w_bot_ktv():
+        try:
+            tving_white_list = LogicWhitelist.tving_get_whitelist()
+            wavve_white_list = LogicWhitelist.wavve_get_whitelist()
+            vod_white_list = '|'.join(list(set(tving_white_list + wavve_white_list)))
+            
+            from bot_downloader_ktv.logic_vod import P
+            ModelKtvSetting = P.ModelSetting
+            logger.info('bot_ktv (before): ' + ModelKtvSetting.get('vod_whitelist_program'))
+            ModelKtvSetting.set('vod_whitelist_program', vod_white_list)
+            logger.info('bot_ktv (after): ' + ModelKtvSetting.get('vod_whitelist_program'))
+            return True
+        except ImportError:
+            logger.error('Exception: bot_ktv plugin required')
+            return False
         except Exception as e: 
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())

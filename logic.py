@@ -40,7 +40,8 @@ class Logic(object):
         # 'auto_tving_order' : 'viewDay',
         'auto_priority' : '0',
         'auto_delete' : 'False',
-        'auto_download' : 'False'
+        'auto_download' : 'False',
+        'auto_sync_w_bot_ktv' : 'False'
     }
 
     @staticmethod
