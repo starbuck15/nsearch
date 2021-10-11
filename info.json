@@ -1,1 +1,12 @@
-{"more": "https://github.com/starbuck15/nsearch", "version": "0.0.9.2", "name": "nSearch", "zip": "https://github.com/starbuck15/nsearch/archive/master.zip", "developer": "starbuck", "home": "https://github.com/starbuck15/nsearch", "description": "Search", "icon": "", "category_name": "vod"}
+{
+    "version": "0.0.9.3",
+    "name": "nSearch",
+    "category_name": "vod",
+    "icon": "",
+    "developer": "starbuck",
+    "description": "Search",
+    "home": "https://github.com/starbuck15/nsearch",
+    "more": "https://github.com/starbuck15/nsearch",
+    "zip": "https://github.com/starbuck15/nsearch/archive/master.zip",
+    "category": "vod"
+}

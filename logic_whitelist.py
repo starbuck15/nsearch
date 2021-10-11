@@ -152,8 +152,17 @@ class LogicWhitelist(object):
             for x in ret['list']:
                 if x['channelname'] in except_channels:
                     continue
-                if x['programtitle'] in except_programs:
+                # if x['programtitle'] in except_programs:
+                #     continue
+                
+                find_in_except_programs = False
+                for program_name in except_programs:
+                    if x['programtitle'].find(program_name) != -1:
+                        find_in_except_programs = True
+                        break
+                if find_in_except_programs:
                     continue
+
                 item = {}
                 item['source'] = 'wavve'
                 item['title'] = x['programtitle'].strip()
@@ -193,8 +202,17 @@ class LogicWhitelist(object):
             for x in ret['body']['result']:
                 if x['channel']['name']['ko'] in except_channels:
                     continue
-                if x['program']['name']['ko'] in except_programs:
+                # if x['program']['name']['ko'] in except_programs:
+                #     continue
+                
+                find_in_except_programs = False
+                for program_name in except_programs:
+                    if x['program']['name']['ko'].find(program_name) != -1:
+                        find_in_except_programs = True
+                        break
+                if find_in_except_programs:
                     continue
+
                 item = {}
                 item['source'] = 'tving'
                 item['title'] = x['program']['name']['ko'].strip()
