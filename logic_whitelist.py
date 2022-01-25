@@ -17,8 +17,7 @@ from framework.job import Job
 from framework.util import Util
 from framework import py_urllib
 
-import framework.tving.api as Tving
-
+from support.site.tving import SupportTving
 from wavve.model import ModelSetting as ModelWavveSetting, ModelWavveEpisode as ModelWavveEpisode
 from wavve.logic_program import LogicProgram as WavveLogicProgram
 from tving.model import ModelSetting as ModelTvingSetting, Episode as ModelTvingEpisode
@@ -198,8 +197,8 @@ class LogicWhitelist(object):
             data = []
             data_total = []
             ret = LogicPopular.tving_get_popular_json()
-            # data = [x['program']['name']['ko'].strip() for x in ret['body']['result']]
-            for x in ret['body']['result']:
+            # data = [x['program']['name']['ko'].strip() for x in ret['result']]
+            for x in ret['result']:
                 if x['channel']['name']['ko'] in except_channels:
                     continue
                 # if x['program']['name']['ko'] in except_programs:
@@ -461,7 +460,7 @@ class LogicWhitelist(object):
     def tving_download(program):
         try:
             import datetime
-            quality =  Tving.get_quality_to_tving(ModelTvingSetting.get('auto_quality'))
+            quality =  SupportTving.ins.get_quality_to_tving(ModelTvingSetting.get('auto_quality'))
             month_ago = (datetime.date.today() - datetime.timedelta(days=30)).strftime('%y%m%d')
             query = db.session.query(ModelTvingEpisode.program_name, ModelTvingEpisode.channel_name, ModelTvingEpisode.episode_code)
             query = query.filter((ModelTvingEpisode.call == 'auto') & (ModelTvingEpisode.broadcast_date > month_ago))
