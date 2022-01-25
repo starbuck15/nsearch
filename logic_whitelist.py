@@ -197,7 +197,7 @@ class LogicWhitelist(object):
             data = []
             data_total = []
             ret = LogicPopular.tving_get_popular_json()
-            # data = [x['program']['name']['ko'].strip() for x in ret['result']]
+            # data = [x['program']['name']['ko'].strip() for x in ret['body']['result']]
             for x in ret['body']['result']:
                 if x['channel']['name']['ko'] in except_channels:
                     continue
