@@ -93,62 +93,30 @@ class LogicPopular(object):
             logger.error(traceback.format_exc())
 
     @staticmethod
-    def wavve_get_cfdeeplink_json(type='all'):
+    def wavve_get_cfpopularcontents_json(type='all'):
         try:
             param = wavve_get_baseparameter()
-            if type == 'dra':
-                uicode = 'VN4'
-            elif type == 'ent':
-                uicode = 'VN3'
-            elif type == 'doc':
-                uicode = 'VN5'
-            else:
-                uicode = 'VN500' # 핫 (가로)
-                # uicode = 'VN2' # 인기 (가로)
-                # uicode = 'VN1' # 최신 (세로)
-           
-            url = '%s/cf/deeplink/%s?%s' % (wavve_config['base_url'], uicode, py_urllib.urlencode(param))
-            res = requests.get(url)
-            data = res.json()
-            url = 'https://%s' % (data['url'].replace('limit=20', 'limit=30'))
-            res = requests.get(url)
-            data = res.json()
-            return data
-        except Exception as e:
-            logger.error('Exception:%s', e)
-            logger.error(traceback.format_exc())
-
-    '''
-    @staticmethod
-    def wavve_get_cfpopular_json(type='all'):
-        try:
-            param = wavve_get_baseparameter()
-            param['uiparent'] = 'FN0'
-            param['uirank'] = '0'
             if type == 'dra':
                 param['genre'] = '01'
-                param['broadcastid'] = 'FN0_VN327_pc'
-                param['uitype'] = 'VN327'
+                uicode = 'VN4'
             elif type == 'ent':
                 param['genre'] = '02'
-                param['broadcastid'] = 'FN0_VN326_pc'
-                param['uitype'] = 'VN326'
+                uicode = 'VN3'
             elif type == 'doc':
                 param['genre'] = '03'
-                param['broadcastid'] = 'FN0_VN328_pc'
-                param['uitype'] = 'VN328'
+                uicode = 'VN5'
             else:
                 param['genre'] = 'all' # 01 드라마, 02 예능, 03 시사교양, 09 해외시리즈, 08 애니메이션, 06 키즈, 05 스포츠
-                param['broadcastid'] = 'FN0_VN327_pc' # unknown
-                param['uitype'] = 'VN327' # unknown
-            param['WeekDay'] = 'all'
-            param['came'] = 'broadcast'
+                uicode = 'VN500'
+            param['uicode'] = uicode
+            param['uiparent'] = 'FN0'
+            param['uirank'] = 0
+            param['uitype'] = uicode
+            param['orderby'] = 'viewtime'
             param['subgenre'] = 'all'
             param['channel'] = 'all'
-            param['contenttype'] = 'vod'
             param['offset'] = '0'
             param['limit'] = '30'
-            param['orderby'] = 'viewtime'
             url = '%s/cf/vod/popularcontents?%s' % (wavve_config['base_url'], py_urllib.urlencode(param))
             res = requests.get(url)
             data = res.json()
@@ -156,18 +124,18 @@ class LogicPopular(object):
         except Exception as e:
             logger.error('Exception:%s', e)
             logger.error(traceback.format_exc())
-    '''
 
     @staticmethod
     def wavve_get_popular_json(type='all'):
         try:
             data = LogicPopular.wavve_get_popularcontents_json(type)
-            data2 = LogicPopular.wavve_get_cfdeeplink_json(type)
+            data2 = LogicPopular.wavve_get_cfpopularcontents_json(type)
             
             for item in data['list']:
                 item['thumbnail'] = item['image']
                 for x in data2['cell_toplist']['celllist']:
-                    if item['programtitle'].strip() == x['title_list'][0]['text'].strip():
+                    if x['alt'].strip() in item['programtitle'].strip():
+                    # if item['programtitle'].strip() == x['title_list'][0]['text'].strip():
                         item['thumbnail'] = x['thumbnail']
                         data2['cell_toplist']['celllist'].remove(x)
                         break
